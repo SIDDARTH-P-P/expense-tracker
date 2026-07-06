@@ -26,7 +26,7 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: {
     default: 'Ledgerly — Track every rupee, dollar, and euro',
-    template: '%s · Ledgerly',
+    template: '%s · Ledgerly ',
   },
   description:
     'A premium personal finance and expense tracker. Track income and expenses, visualize spending, and stay on top of your budget.',
