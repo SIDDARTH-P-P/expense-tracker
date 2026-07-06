@@ -1,0 +1,207 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Google Fonts ─────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap');
+
+:root {
+  /* Colors */
+  --background: 220 20% 97%;
+  --surface: 0 0% 100%;
+  --surface-2: 220 20% 94%;
+  --foreground: 222 35% 10%;
+  --muted: 215 18% 48%;
+  --border: 214 22% 88%;
+
+  --primary: 172 66% 38%;
+  --primary-foreground: 0 0% 100%;
+
+  --income: 152 58% 36%;
+  --income-foreground: 0 0% 100%;
+
+  --expense: 350 76% 54%;
+  --expense-foreground: 0 0% 100%;
+
+  --warning: 38 92% 50%;
+
+  /* Shadows */
+  --shadow-soft: 0 2px 16px 0 hsl(222 30% 10% / 0.07);
+  --shadow-card: 0 4px 24px 0 hsl(222 30% 10% / 0.09);
+  --shadow-glow: 0 0 0 1px hsl(var(--primary) / 0.2), 0 8px 32px hsl(var(--primary) / 0.25);
+  --shadow-float: 0 8px 40px hsl(222 30% 10% / 0.16);
+}
+
+.dark {
+  --background: 222 32% 6%;
+  --surface: 222 28% 9%;
+  --surface-2: 222 24% 13%;
+  --foreground: 210 32% 96%;
+  --muted: 215 18% 62%;
+  --border: 222 22% 18%;
+
+  --primary: 172 70% 48%;
+  --primary-foreground: 222 32% 7%;
+
+  --income: 152 65% 48%;
+  --income-foreground: 222 32% 7%;
+
+  --expense: 350 80% 63%;
+  --expense-foreground: 222 32% 7%;
+
+  --warning: 38 92% 58%;
+
+  --shadow-soft: 0 2px 16px 0 hsl(0 0% 0% / 0.25);
+  --shadow-card: 0 4px 24px 0 hsl(0 0% 0% / 0.32);
+  --shadow-glow: 0 0 0 1px hsl(var(--primary) / 0.25), 0 8px 32px hsl(var(--primary) / 0.3);
+  --shadow-float: 0 8px 40px hsl(0 0% 0% / 0.4);
+}
+
+/* ─── Reset & Base ──────────────────────────────────────────────────── */
+*, *::before, *::after {
+  border-color: hsl(var(--border));
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+  height: 100%;
+}
+
+body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-feature-settings: 'cv11', 'ss01';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.25s ease, color 0.25s ease;
+  min-height: 100%;
+  /* Safe area support */
+  padding-top: env(safe-area-inset-top);
+}
+
+/* ─── Typography ────────────────────────────────────────────────────── */
+.font-display {
+  font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+}
+
+.amount {
+  font-family: 'Inter', system-ui, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* ─── Utility Classes ───────────────────────────────────────────────── */
+.glass {
+  background: hsl(var(--surface) / 0.7);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid hsl(var(--border) / 0.5);
+}
+
+.glass-card {
+  background: hsl(var(--surface) / 0.85);
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  border: 1px solid hsl(var(--border) / 0.6);
+  box-shadow: var(--shadow-card);
+}
+
+.shadow-soft { box-shadow: var(--shadow-soft); }
+.shadow-card { box-shadow: var(--shadow-card); }
+.shadow-glow { box-shadow: var(--shadow-glow); }
+.shadow-float { box-shadow: var(--shadow-float); }
+
+.gradient-primary {
+  background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--income)));
+}
+
+.gradient-expense {
+  background: linear-gradient(135deg, hsl(var(--expense)), hsl(350 76% 70%));
+}
+
+.gradient-text {
+  background: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--income)));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.card-hover {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-card);
+}
+
+/* ─── Skeleton shimmer ──────────────────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--surface-2)) 25%,
+    hsl(var(--border)) 37%,
+    hsl(var(--surface-2)) 63%
+  );
+  background-size: 400% 100%;
+  animation: shimmer 1.6s ease infinite;
+}
+
+@keyframes shimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* ─── Scrollbar ─────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: hsl(var(--border));
+  border-radius: 999px;
+}
+
+/* ─── Focus ─────────────────────────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid hsl(var(--primary));
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* ─── Touch feedback ────────────────────────────────────────────────── */
+@media (hover: none) {
+  button:active, a:active {
+    opacity: 0.75;
+  }
+}
+
+/* ─── Animations ────────────────────────────────────────────────────── */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes pulse-ring {
+  0%   { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+
+.animate-fade-up  { animation: fade-up 0.4s ease forwards; }
+.animate-fade-in  { animation: fade-in 0.3s ease forwards; }
+
+/* ─── Reduced motion ────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* ─── Safe areas ────────────────────────────────────────────────────── */
+.pb-safe { padding-bottom: max(env(safe-area-inset-bottom), 0.5rem); }
+.pt-safe { padding-top: max(env(safe-area-inset-top), 0px); }
