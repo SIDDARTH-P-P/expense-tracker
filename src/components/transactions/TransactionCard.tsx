@@ -100,7 +100,7 @@ function TransactionCardInner({ transaction, currency, compact }: TransactionCar
             </div>
             {/* Note preview */}
             {!compact && transaction.note && (
-              <p className="mt-0.5 text-[11px] text-muted truncate italic">"{transaction.note}"</p>
+              <p className="mt-0.5 text-[11px] text-muted truncate italic">&ldquo;{transaction.note}&rdquo;</p>
             )}
           </div>
 
