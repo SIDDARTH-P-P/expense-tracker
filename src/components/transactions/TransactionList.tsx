@@ -1,11 +1,15 @@
 'use client';
 
-import { useEffect, useRef, useCallback, useMemo } from 'react';
+import { useEffect, useRef, useCallback, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { TransactionCard } from './TransactionCard';
 import { TransactionRowSkeleton } from '@/components/common/Skeleton';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ErrorState } from '@/components/common/ErrorState';
+import { BottomSheet } from '@/components/common/BottomSheet';
+import { ConfirmDialog } from '@/components/common/ConfirmDialog';
+import { TransactionForm } from '@/components/forms/TransactionForm';
+import { useDeleteTransaction, useUpdateTransaction } from '@/hooks/useTransactions';
 import { FiInbox, FiLoader } from 'react-icons/fi';
 import type { Transaction } from '@/types';
 import type { InfiniteData } from '@tanstack/react-query';
@@ -20,6 +24,16 @@ interface TransactionListProps {
   hasNextPage: boolean;
   onRetry: () => void;
   onFetchNextPage: () => void;
+}
+
+type TransactionWithMongoId = Transaction & { _id?: string | { toString(): string } };
+
+function getTransactionId(transaction?: Transaction | null) {
+  if (!transaction) return '';
+  const mongoId = (transaction as TransactionWithMongoId)._id;
+  if (transaction.id) return transaction.id;
+  if (typeof mongoId === 'string') return mongoId;
+  return mongoId?.toString() ?? '';
 }
 
 function getDateLabel(dateStr: string): string {
@@ -42,8 +56,12 @@ export function TransactionList({
   hasNextPage,
   onRetry,
   onFetchNextPage,
-}: TransactionListProps) {
-  const sentinelRef = useRef<HTMLDivElement>(null);
+	}: TransactionListProps) {
+	  const sentinelRef = useRef<HTMLDivElement>(null);
+	  const [editing, setEditing] = useState<Transaction | null>(null);
+	  const [deleting, setDeleting] = useState<Transaction | null>(null);
+	  const updateTx = useUpdateTransaction();
+	  const deleteTx = useDeleteTransaction();
 
   // IntersectionObserver for infinite scroll
   const observerCallback = useCallback(
@@ -122,10 +140,15 @@ export function TransactionList({
                 transition={{ delay: Math.min(gi * 0.03 + i * 0.03, 0.25), duration: 0.25 }}
                 style={{ contentVisibility: 'auto' }}
               >
-                <TransactionCard transaction={tx} currency={currency} />
-              </motion.div>
-            ))}
-          </div>
+	                <TransactionCard
+	                  transaction={tx}
+	                  currency={currency}
+	                  onEdit={setEditing}
+	                  onDelete={setDeleting}
+	                />
+	              </motion.div>
+	            ))}
+	          </div>
         </div>
       ))}
 
@@ -145,11 +168,49 @@ export function TransactionList({
       )}
 
       {/* End of list */}
-      {!hasNextPage && allItems.length > 0 && (
-        <p className="py-4 text-center text-xs text-muted">
-          All {allItems.length} transactions loaded
-        </p>
-      )}
-    </div>
-  );
-}
+	      {!hasNextPage && allItems.length > 0 && (
+	        <p className="py-4 text-center text-xs text-muted">
+	          All {allItems.length} transactions loaded
+	        </p>
+	      )}
+
+	      <BottomSheet
+	        isOpen={!!editing}
+	        onClose={() => setEditing(null)}
+	        title="Edit transaction"
+	        showHeader={false}
+	        className="h-[100dvh] max-h-[100dvh] rounded-none border-0 bg-surface p-0 sm:h-[92vh] sm:max-w-[430px] sm:rounded-2xl sm:border sm:p-0"
+	      >
+	        {editing && (
+	          <TransactionForm
+	            initialData={editing}
+	            isSubmitting={updateTx.isPending}
+	            onCancel={() => setEditing(null)}
+	            onSubmit={(values) => {
+	              const transactionId = getTransactionId(editing);
+	              if (!transactionId) return;
+	              updateTx.mutate(
+	                { id: transactionId, input: values },
+	                { onSuccess: () => setEditing(null) }
+	              );
+	            }}
+	          />
+	        )}
+	      </BottomSheet>
+
+	      <ConfirmDialog
+	        isOpen={!!deleting}
+	        title="Delete transaction?"
+	        description="This entry will be permanently removed from your records."
+	        confirmLabel="Delete"
+	        isLoading={deleteTx.isPending}
+	        onConfirm={() => {
+	          const transactionId = getTransactionId(deleting);
+	          if (!transactionId) return;
+	          deleteTx.mutate(transactionId, { onSuccess: () => setDeleting(null) });
+	        }}
+	        onCancel={() => setDeleting(null)}
+	      />
+	    </div>
+	  );
+	}

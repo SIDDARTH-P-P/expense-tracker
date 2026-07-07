@@ -537,9 +537,16 @@ export function TransactionForm({ defaultType = 'expense', initialData, onSubmit
     setPicker(null);
   }
 
+  function serializeValues(values: TransactionFormValues): TransactionFormValues {
+    return {
+      ...values,
+      date: parseDatetimeLocal(values.date).toISOString(),
+    };
+  }
+
   return (
     <form
-      onSubmit={handleSubmit((values) => onSubmit(values, 'save'))}
+      onSubmit={handleSubmit((values) => onSubmit(serializeValues(values), 'save'))}
       className="flex h-full min-h-0 flex-col bg-surface text-foreground"
     >
       <input type="hidden" {...register('type')} />
@@ -746,7 +753,7 @@ export function TransactionForm({ defaultType = 'expense', initialData, onSubmit
         <button
           type="button"
           disabled={isSubmitting}
-          onClick={handleSubmit((values) => onSubmit(values, 'saveAndNew'))}
+          onClick={handleSubmit((values) => onSubmit(serializeValues(values), 'saveAndNew'))}
           className="h-12 min-w-0 rounded-xl border-2 border-primary bg-surface px-2 text-xs font-bold uppercase tracking-[0.08em] text-primary disabled:opacity-60 sm:h-[62px] sm:rounded-[6px] sm:text-[20px] sm:tracking-[0.16em]"
         >
           <span className="sm:hidden">Save & Add</span>

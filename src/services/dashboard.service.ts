@@ -11,6 +11,9 @@ function endOfMonth(d: Date) {
 function startOfDay(d: Date) {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
+function endOfDay(d: Date) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 23, 59, 59, 999);
+}
 
 function sumByType(txs: ITransaction[], type: 'income' | 'expense') {
   return txs.filter((t) => t.type === type).reduce((acc, t) => acc + t.amount, 0);
@@ -31,11 +34,11 @@ export const dashboardService = {
     const sixMonthsAgo = startOfMonth(new Date(now.getFullYear(), now.getMonth() - 5, 1));
 
     const [allTxs, thisMonthTxs, lastMonthTxs, trendTxs, todayTxs] = await Promise.all([
-      transactionRepository.findInRange(userId, new Date(0), now),
+      transactionRepository.findAllByUser(userId),
       transactionRepository.findInRange(userId, thisMonthStart, thisMonthEnd),
       transactionRepository.findInRange(userId, lastMonthStart, lastMonthEnd),
       transactionRepository.findInRange(userId, sixMonthsAgo, thisMonthEnd),
-      transactionRepository.findInRange(userId, startOfDay(now), now),
+      transactionRepository.findInRange(userId, startOfDay(now), endOfDay(now)),
     ]);
 
     const totalIncome = sumByType(allTxs, 'income');

@@ -58,6 +58,11 @@ export const transactionRepository = {
     return Transaction.findOne({ _id: id, userId }).populate('category');
   },
 
+  async findAllByUser(userId: string) {
+    await connectDB();
+    return Transaction.find({ userId }).populate('category');
+  },
+
   async create(data: Partial<ITransaction>) {
     await connectDB();
     const doc = await Transaction.create(data);

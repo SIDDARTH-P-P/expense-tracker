@@ -27,6 +27,13 @@ function parseDate(dateStr: string): Date {
   return d;
 }
 
+function getObjectId(value: unknown): Types.ObjectId {
+  if (value instanceof Types.ObjectId) return value;
+
+  const id = typeof value === 'object' && value !== null && '_id' in value ? value._id : value;
+  return new Types.ObjectId(String(id));
+}
+
 export const transactionService = {
   async list(userId: string, opts: TransactionQueryOptions) {
     return transactionRepository.findAllForUser(userId, opts);
@@ -65,7 +72,7 @@ export const transactionService = {
       title: `${original.title} (copy)`,
       amount: original.amount,
       type: original.type,
-      category: original.category as never,
+      category: getObjectId(original.category),
       paymentMethod: original.paymentMethod,
       date: new Date(),
       note: original.note,
