@@ -3,21 +3,27 @@ import { withAuth } from '@/middlewares/with-auth';
 import { transactionService, TransactionError } from '@/services/transaction.service';
 import { transactionSchema } from '@/lib/validations/transaction.schema';
 import { apiSuccess, apiError } from '@/lib/utils/api-response';
+import { normalizePaginatedTransactions, normalizeTransaction } from '@/lib/utils/normalize-transaction';
 
 export const GET = withAuth(async (req, user) => {
-  const { searchParams } = new URL(req.url);
-  const result = await transactionService.list(user.userId, {
-    search: searchParams.get('search') ?? undefined,
-    type: (searchParams.get('type') as 'income' | 'expense') ?? undefined,
-    category: searchParams.get('category') ?? undefined,
-    from: searchParams.get('from') ?? undefined,
-    to: searchParams.get('to') ?? undefined,
-    sortBy: (searchParams.get('sortBy') as 'date' | 'amount') ?? 'date',
-    sortOrder: (searchParams.get('sortOrder') as 'asc' | 'desc') ?? 'desc',
-    page: Number(searchParams.get('page') ?? 1),
-    pageSize: Number(searchParams.get('pageSize') ?? 20),
-  });
-  return apiSuccess(result);
+  try {
+    const { searchParams } = new URL(req.url);
+    const result = await transactionService.list(user.userId, {
+      search: searchParams.get('search') ?? undefined,
+      type: (searchParams.get('type') as 'income' | 'expense') ?? undefined,
+      category: searchParams.get('category') ?? undefined,
+      from: searchParams.get('from') ?? undefined,
+      to: searchParams.get('to') ?? undefined,
+      sortBy: (searchParams.get('sortBy') as 'date' | 'amount') ?? 'date',
+      sortOrder: (searchParams.get('sortOrder') as 'asc' | 'desc') ?? 'desc',
+      page: Number(searchParams.get('page') ?? 1),
+      pageSize: Number(searchParams.get('pageSize') ?? 20),
+    });
+    return apiSuccess(normalizePaginatedTransactions(result));
+  } catch (err) {
+    console.error('List transactions error:', err);
+    return apiError('Could not fetch transactions.', 500);
+  }
 });
 
 export const POST = withAuth(async (req, user) => {
@@ -27,7 +33,7 @@ export const POST = withAuth(async (req, user) => {
     if (!parsed.success) return apiError('Please check the form for errors.', 422, parsed.error.flatten().fieldErrors);
 
     const created = await transactionService.create(user.userId, parsed.data);
-    return apiSuccess(created, 201);
+    return apiSuccess(normalizeTransaction(created), 201);
   } catch (err) {
     if (err instanceof TransactionError) return apiError(err.message, err.status);
     console.error('Create transaction error:', err);

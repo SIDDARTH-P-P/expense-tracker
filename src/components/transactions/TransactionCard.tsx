@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, memo } from 'react';
+import { useState, memo, type PointerEvent } from 'react';
 import { motion, useMotionValue, useTransform, type PanInfo, AnimatePresence } from 'framer-motion';
 import { FiTrash2, FiCopy, FiEdit2, FiMoreVertical, FiMessageSquare } from 'react-icons/fi';
 import * as Icons from 'react-icons/fi';
@@ -26,6 +26,19 @@ interface TransactionCardProps {
   compact?: boolean;
 }
 
+type TransactionWithMongoId = Transaction & { _id?: string | { toString(): string } };
+
+function getTransactionId(transaction: Transaction) {
+  const mongoId = (transaction as TransactionWithMongoId)._id;
+  if (transaction.id) return transaction.id;
+  if (typeof mongoId === 'string') return mongoId;
+  return mongoId?.toString() ?? '';
+}
+
+function stopCardDrag(event: PointerEvent<HTMLButtonElement>) {
+  event.stopPropagation();
+}
+
 function TransactionCardInner({ transaction, currency, compact }: TransactionCardProps) {
   const [showActions, setShowActions] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
@@ -42,10 +55,21 @@ function TransactionCardInner({ transaction, currency, compact }: TransactionCar
   const category = transaction.category as Category;
   const Icon = (Icons[category?.icon as keyof typeof Icons] ?? Icons.FiTag) as IconType;
   const isIncome = transaction.type === 'income';
+  const transactionId = getTransactionId(transaction);
 
   function handleDragEnd(_: unknown, info: PanInfo) {
     if (info.offset.x < -80) setShowDelete(true);
     x.set(0);
+  }
+
+  function duplicateTransaction() {
+    if (!transactionId) return;
+    duplicateTx.mutate(transactionId);
+  }
+
+  function deleteTransaction() {
+    if (!transactionId) return;
+    deleteTx.mutate(transactionId, { onSuccess: () => setShowDelete(false) });
   }
 
   return (
@@ -69,7 +93,7 @@ function TransactionCardInner({ transaction, currency, compact }: TransactionCar
           dragElastic={0.1}
           style={{ x, opacity: cardOpacity }}
           onDragEnd={handleDragEnd}
-          className="relative flex items-center gap-3 rounded-2xl border border-border bg-surface p-3.5 transition-colors hover:border-border/80 hover:shadow-soft cursor-grab active:cursor-grabbing"
+          className="relative flex items-start gap-3 rounded-2xl border border-border bg-surface p-3 transition-colors hover:border-border/80 hover:shadow-soft sm:items-center sm:p-3.5 cursor-grab active:cursor-grabbing"
         >
           {/* Category icon */}
           <div
@@ -81,22 +105,19 @@ function TransactionCardInner({ transaction, currency, compact }: TransactionCar
 
           {/* Content */}
           <div className="min-w-0 flex-1">
-            <div className="flex items-baseline gap-1.5">
+            <div className="flex min-w-0 items-baseline gap-1.5">
               <p className="truncate text-sm font-semibold">{transaction.title}</p>
               {!compact && transaction.note && (
                 <FiMessageSquare size={10} className="shrink-0 text-muted" />
               )}
             </div>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <span className="text-xs text-muted">{category?.name ?? '—'}</span>
-              <span className="text-muted opacity-40 text-xs">·</span>
-              <span className="text-xs text-muted">{formatDate(transaction.date)}</span>
-              {!compact && (
-                <>
-                  <span className="text-muted opacity-40 text-xs">·</span>
-                  <span className="text-xs text-muted">{formatTime(transaction.date)}</span>
-                </>
-              )}
+            <div className="mt-1 flex min-w-0 flex-col gap-0.5 text-xs text-muted sm:flex-row sm:items-center sm:gap-1.5">
+              <span className="max-w-full truncate sm:max-w-[8rem]">{category?.name ?? '—'}</span>
+              <span className="hidden opacity-40 sm:inline">·</span>
+              <span className="whitespace-nowrap">
+                {formatDate(transaction.date)}
+                {!compact && ` · ${formatTime(transaction.date)}`}
+              </span>
             </div>
             {/* Note preview */}
             {!compact && transaction.note && (
@@ -105,14 +126,14 @@ function TransactionCardInner({ transaction, currency, compact }: TransactionCar
           </div>
 
           {/* Right: amount + actions */}
-          <div className="flex flex-col items-end gap-1 shrink-0">
-            <p className={`amount text-sm font-bold ${isIncome ? 'text-income' : 'text-expense'}`}>
+          <div className="flex shrink-0 flex-col items-end gap-1">
+            <p className={`amount max-w-[116px] truncate whitespace-nowrap text-right text-sm font-bold sm:max-w-none ${isIncome ? 'text-income' : 'text-expense'}`}>
               {isIncome ? '+' : '−'}{formatCurrency(transaction.amount, currency)}
             </p>
             <div className="flex items-center gap-1">
               {/* Payment method badge */}
               <span
-                className="text-[11px] px-1.5 py-0.5 rounded-lg bg-surface-2 text-muted"
+                className="shrink-0 rounded-lg bg-surface-2 px-1.5 py-0.5 text-[11px] text-muted"
                 title={transaction.paymentMethod}
               >
                 {PAYMENT_ICONS[transaction.paymentMethod] ?? '💰'}
@@ -123,13 +144,17 @@ function TransactionCardInner({ transaction, currency, compact }: TransactionCar
                 <div className="hidden sm:flex items-center gap-0.5">
                   <button
                     onClick={() => setShowEdit(true)}
+                    onPointerDown={stopCardDrag}
+                    disabled={!transactionId}
                     aria-label="Edit"
                     className="rounded-lg p-1.5 text-muted transition-colors hover:bg-primary/10 hover:text-primary"
                   >
                     <FiEdit2 size={12} />
                   </button>
                   <button
-                    onClick={() => duplicateTx.mutate(transaction.id)}
+                    onClick={duplicateTransaction}
+                    onPointerDown={stopCardDrag}
+                    disabled={!transactionId || duplicateTx.isPending}
                     aria-label="Duplicate"
                     className="rounded-lg p-1.5 text-muted transition-colors hover:bg-surface-2 hover:text-foreground"
                   >
@@ -137,6 +162,8 @@ function TransactionCardInner({ transaction, currency, compact }: TransactionCar
                   </button>
                   <button
                     onClick={() => setShowDelete(true)}
+                    onPointerDown={stopCardDrag}
+                    disabled={!transactionId}
                     aria-label="Delete"
                     className="rounded-lg p-1.5 text-muted transition-colors hover:bg-expense/10 hover:text-expense"
                   >
@@ -149,6 +176,8 @@ function TransactionCardInner({ transaction, currency, compact }: TransactionCar
               {!compact && (
                 <button
                   onClick={() => setShowActions((s) => !s)}
+                  onPointerDown={stopCardDrag}
+                  disabled={!transactionId}
                   className="sm:hidden rounded-lg p-1.5 text-muted hover:bg-surface-2"
                   aria-label="More actions"
                 >
@@ -169,22 +198,25 @@ function TransactionCardInner({ transaction, currency, compact }: TransactionCar
               transition={{ duration: 0.2 }}
               className="overflow-hidden"
             >
-              <div className="flex gap-2 pt-2 pb-1 px-1">
+              <div className="grid grid-cols-3 gap-2 px-1 pb-1 pt-2">
                 <button
                   onClick={() => { setShowEdit(true); setShowActions(false); }}
-                  className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-primary/10 py-2.5 text-xs font-semibold text-primary"
+                  disabled={!transactionId}
+                  className="flex min-w-0 items-center justify-center gap-1 rounded-xl bg-primary/10 px-2 py-2.5 text-[11px] font-semibold text-primary min-[380px]:gap-1.5 min-[380px]:text-xs"
                 >
                   <FiEdit2 size={12} /> Edit
                 </button>
                 <button
-                  onClick={() => { duplicateTx.mutate(transaction.id); setShowActions(false); }}
-                  className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-surface-2 py-2.5 text-xs font-semibold"
+                  onClick={() => { duplicateTransaction(); setShowActions(false); }}
+                  disabled={!transactionId || duplicateTx.isPending}
+                  className="flex min-w-0 items-center justify-center gap-1 rounded-xl bg-surface-2 px-2 py-2.5 text-[11px] font-semibold min-[380px]:gap-1.5 min-[380px]:text-xs"
                 >
                   <FiCopy size={12} /> Duplicate
                 </button>
                 <button
                   onClick={() => { setShowDelete(true); setShowActions(false); }}
-                  className="flex-1 flex items-center justify-center gap-1.5 rounded-xl bg-expense/10 py-2.5 text-xs font-semibold text-expense"
+                  disabled={!transactionId}
+                  className="flex min-w-0 items-center justify-center gap-1 rounded-xl bg-expense/10 px-2 py-2.5 text-[11px] font-semibold text-expense min-[380px]:gap-1.5 min-[380px]:text-xs"
                 >
                   <FiTrash2 size={12} /> Delete
                 </button>
@@ -195,13 +227,21 @@ function TransactionCardInner({ transaction, currency, compact }: TransactionCar
       </div>
 
       {/* Edit sheet */}
-      <BottomSheet isOpen={showEdit} onClose={() => setShowEdit(false)} title="Edit transaction">
+      <BottomSheet
+        isOpen={showEdit}
+        onClose={() => setShowEdit(false)}
+        title="Edit transaction"
+        showHeader={false}
+        className="h-[100dvh] max-h-[100dvh] rounded-none border-0 bg-surface p-0 sm:h-[92vh] sm:max-w-[430px] sm:rounded-2xl sm:border sm:p-0"
+      >
         <TransactionForm
           initialData={transaction}
           isSubmitting={updateTx.isPending}
-          onSubmit={(values) =>
-            updateTx.mutate({ id: transaction.id, input: values }, { onSuccess: () => setShowEdit(false) })
-          }
+          onCancel={() => setShowEdit(false)}
+          onSubmit={(values) => {
+            if (!transactionId) return;
+            updateTx.mutate({ id: transactionId, input: values }, { onSuccess: () => setShowEdit(false) });
+          }}
         />
       </BottomSheet>
 
@@ -212,7 +252,7 @@ function TransactionCardInner({ transaction, currency, compact }: TransactionCar
         description="This can't be undone. The entry will be permanently removed."
         confirmLabel="Delete"
         isLoading={deleteTx.isPending}
-        onConfirm={() => deleteTx.mutate(transaction.id, { onSuccess: () => setShowDelete(false) })}
+        onConfirm={deleteTransaction}
         onCancel={() => setShowDelete(false)}
       />
     </>

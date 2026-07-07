@@ -36,7 +36,8 @@ export default function TransactionsPage() {
 
   // All-at-once for cash book view
   const { data: cashbookData, isLoading: cashbookLoading } = useTransactions(
-    viewMode === 'cashbook' ? { ...activeFilters, page: 1, pageSize: 1000 } : { page: 1, pageSize: 0 }
+    { ...activeFilters, page: 1, pageSize: 1000 },
+    { enabled: viewMode === 'cashbook' }
   );
 
   const totalCount = infiniteData?.pages[0]?.total ?? 0;

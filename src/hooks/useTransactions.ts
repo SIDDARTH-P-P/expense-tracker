@@ -5,6 +5,7 @@ import toast from 'react-hot-toast';
 import { apiClient, ApiClientError } from '@/services/api-client';
 import type { PaginatedResult, Transaction } from '@/types';
 import type { TransactionFormValues } from '@/lib/validations/transaction.schema';
+import type { UseQueryOptions } from '@tanstack/react-query';
 
 export interface TransactionFilters {
   search?: string;
@@ -26,11 +27,15 @@ function buildQuery(filters: TransactionFilters) {
   return params.toString();
 }
 
-export function useTransactions(filters: TransactionFilters = {}) {
+export function useTransactions(
+  filters: TransactionFilters = {},
+  options: Pick<UseQueryOptions<PaginatedResult<Transaction>, ApiClientError>, 'enabled'> = {}
+) {
   return useQuery({
     queryKey: ['transactions', filters],
     queryFn: () => apiClient.get<PaginatedResult<Transaction>>(`/transactions?${buildQuery(filters)}`),
     placeholderData: (prev) => prev,
+    ...options,
   });
 }
 

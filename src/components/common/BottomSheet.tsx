@@ -11,13 +11,14 @@ interface BottomSheetProps {
   title: string;
   children: React.ReactNode;
   className?: string;
+  showHeader?: boolean;
 }
 
 /**
  * Renders as a bottom sheet on mobile (matching native finance-app patterns)
  * and a centered modal on larger screens.
  */
-export function BottomSheet({ isOpen, onClose, title, children, className }: BottomSheetProps) {
+export function BottomSheet({ isOpen, onClose, title, children, className, showHeader = true }: BottomSheetProps) {
   useEffect(() => {
     if (isOpen) document.body.style.overflow = 'hidden';
     else document.body.style.overflow = '';
@@ -52,18 +53,22 @@ export function BottomSheet({ isOpen, onClose, title, children, className }: Bot
               className
             )}
           >
-            <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-border sm:hidden" />
-            <div className="mb-5 flex items-center justify-between">
-              <h2 className="text-lg font-display font-semibold">{title}</h2>
-              <button
-                onClick={onClose}
-                aria-label="Close"
-                className="flex h-9 w-9 items-center justify-center rounded-full bg-surface-2 text-muted hover:text-foreground"
-              >
-                <FiX />
-              </button>
-            </div>
-            <div className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-4">
+            {showHeader && (
+              <>
+                <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-border sm:hidden" />
+                <div className="mb-5 flex items-center justify-between">
+                  <h2 className="text-lg font-display font-semibold">{title}</h2>
+                  <button
+                    onClick={onClose}
+                    aria-label="Close"
+                    className="flex h-9 w-9 items-center justify-center rounded-full bg-surface-2 text-muted hover:text-foreground"
+                  >
+                    <FiX />
+                  </button>
+                </div>
+              </>
+            )}
+            <div className={cn('flex min-h-0 flex-1 flex-col overflow-y-auto pb-4', !showHeader && 'overflow-hidden pb-0')}>
               {children}
             </div>
           </motion.div>

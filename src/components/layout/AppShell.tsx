@@ -48,12 +48,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <FloatingAddButton />
 
       {/* Add / Edit transaction sheet */}
-      <BottomSheet isOpen={isAddSheetOpen} onClose={closeAddSheet} title="Add transaction">
+      <BottomSheet
+        isOpen={isAddSheetOpen}
+        onClose={closeAddSheet}
+        title="Add transaction"
+        showHeader={false}
+        className="h-[100dvh] max-h-[100dvh] rounded-none border-0 bg-surface p-0 sm:h-[92vh] sm:max-w-[430px] sm:rounded-2xl sm:border sm:p-0"
+      >
         <TransactionForm
           defaultType={defaultType}
           isSubmitting={createTransaction.isPending}
-          onSubmit={(values) =>
-            createTransaction.mutate(values, { onSuccess: closeAddSheet })
+          onCancel={closeAddSheet}
+          onSubmit={(values, intent) =>
+            createTransaction.mutate(values, { onSuccess: intent === 'saveAndNew' ? undefined : closeAddSheet })
           }
         />
       </BottomSheet>

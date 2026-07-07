@@ -1,27 +1,8 @@
 import type { Metadata, Viewport } from 'next';
-import { Space_Grotesk, Inter, JetBrains_Mono } from 'next/font/google';
 import { QueryProvider } from '@/components/providers/QueryProvider';
 import { ToastProvider } from '@/components/providers/ToastProvider';
 import { ThemeInitializer } from '@/components/providers/ThemeInitializer';
 import './globals.css';
-
-const spaceGrotesk = Space_Grotesk({
-  subsets: ['latin'],
-  variable: '--font-display',
-  display: 'swap',
-});
-
-const inter = Inter({
-  subsets: ['latin'],
-  variable: '--font-body',
-  display: 'swap',
-});
-
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ['latin'],
-  variable: '--font-mono',
-  display: 'swap',
-});
 
 export const metadata: Metadata = {
   title: {
@@ -46,7 +27,7 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
-      <body className={`${spaceGrotesk.variable} ${inter.variable} ${jetbrainsMono.variable} font-body antialiased`}>
+      <body className="font-body antialiased">
         <QueryProvider>
           <ThemeInitializer />
           {children}
