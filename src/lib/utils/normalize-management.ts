@@ -41,6 +41,12 @@ export function normalizeCategoryRecord(value: unknown): Category {
     icon: typeof category.icon === 'string' ? category.icon : 'FiTag',
     color: typeof category.color === 'string' ? category.color : '#2DD4BF',
     type: category.type === 'income' || category.type === 'expense' || category.type === 'both' ? category.type : 'expense',
+    subcategories: Array.isArray(category.subcategories)
+      ? category.subcategories.map((sub: any) => ({
+          id: stringifyId(sub._id || sub.id),
+          name: typeof sub.name === 'string' ? sub.name : '',
+        }))
+      : [],
     isDefault: Boolean(category.isDefault),
     createdAt: stringifyDate(category.createdAt),
     updatedAt: stringifyDate(category.updatedAt),

@@ -78,7 +78,7 @@ export const categoryService = {
 
   async update(userId: string, id: string, data: Partial<CategoryFormValues>) {
     try {
-      const updated = await categoryRepository.updateById(id, userId, data);
+      const updated = await categoryRepository.updateById(id, userId, data as Record<string, any>);
       if (!updated) throw new CategoryError('Category not found.', 404);
       return updated;
     } catch (err) {

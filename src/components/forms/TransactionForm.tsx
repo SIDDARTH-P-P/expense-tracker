@@ -497,6 +497,7 @@ export function TransactionForm({ defaultType = 'expense', initialData, onSubmit
           amount: initialData.amount,
           type: initialData.type,
           category: typeof initialData.category === 'string' ? initialData.category : initialData.category.id,
+          subCategory: initialData.subCategory ?? null,
           paymentMethod: initialData.paymentMethod,
           date: toDatetimeLocalString(new Date(initialData.date)),
           note: initialData.note,
@@ -506,6 +507,7 @@ export function TransactionForm({ defaultType = 'expense', initialData, onSubmit
           paymentMethod: 'cash',
           date: toDatetimeLocalString(new Date()),
           category: '',
+          subCategory: null,
         },
   });
 
@@ -556,6 +558,7 @@ export function TransactionForm({ defaultType = 'expense', initialData, onSubmit
       <input type="hidden" {...register('date')} />
       <input type="hidden" {...register('note')} />
       <input type="hidden" {...register('category')} />
+      <input type="hidden" {...register('subCategory')} />
 
       <div className="flex h-16 shrink-0 items-center justify-between border-b border-border bg-surface px-3 sm:h-[74px] sm:px-5">
         <button type="button" onClick={onCancel} className="grid h-10 w-10 shrink-0 place-items-center text-foreground sm:h-11 sm:w-11" aria-label="Back">
@@ -682,7 +685,11 @@ export function TransactionForm({ defaultType = 'expense', initialData, onSubmit
             <QuickCategoryPicker
               categories={filteredCategories}
               value={categoryValue}
-              onChange={(id) => setValue('category', id, { shouldDirty: true, shouldValidate: true })}
+              subValue={watch('subCategory')}
+              onChange={(id, subName) => {
+                setValue('category', id, { shouldDirty: true, shouldValidate: true });
+                setValue('subCategory', subName, { shouldDirty: true, shouldValidate: true });
+              }}
               error={errors.category?.message}
             />
           </div>

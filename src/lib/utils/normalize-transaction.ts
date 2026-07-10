@@ -58,6 +58,12 @@ export function normalizeCategory(value: unknown): Category | string {
     icon: typeof category.icon === 'string' ? category.icon : 'FiTag',
     color: typeof category.color === 'string' ? category.color : '#888888',
     type: category.type === 'income' || category.type === 'expense' || category.type === 'both' ? category.type : 'expense',
+    subcategories: Array.isArray(category.subcategories)
+      ? category.subcategories.map((sub: any) => ({
+          id: stringifyId(sub._id || sub.id),
+          name: typeof sub.name === 'string' ? sub.name : '',
+        }))
+      : [],
     isDefault: Boolean(category.isDefault),
   };
 }
@@ -73,6 +79,7 @@ export function normalizeTransaction(value: unknown): Transaction {
     amount: typeof transaction.amount === 'number' ? transaction.amount : Number(transaction.amount ?? 0),
     type: normalizeType(transaction.type),
     category: normalizeCategory(transaction.category),
+    subCategory: typeof transaction.subCategory === 'string' ? transaction.subCategory : null,
     paymentMethod: normalizePaymentMethod(transaction.paymentMethod),
     date: stringifyDate(transaction.date),
     note: typeof transaction.note === 'string' ? transaction.note : undefined,

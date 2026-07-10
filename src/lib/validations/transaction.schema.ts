@@ -5,6 +5,7 @@ export const transactionSchema = z.object({
   amount: z.coerce.number().positive('Amount must be greater than zero'),
   type: z.enum(['income', 'expense']),
   category: z.string().min(1, 'Category is required'),
+  subCategory: z.string().nullable().optional(),
   paymentMethod: z.enum(['cash', 'card', 'upi', 'bank_transfer', 'other']).default('card'),
   date: z.string().min(1, 'Date is required'),
   note: z.string().max(500).optional(),

@@ -12,6 +12,11 @@ export interface User {
   role: 'user' | 'admin';
 }
 
+export interface SubCategory {
+  id: string;
+  name: string;
+}
+
 export interface Category {
   id: string;
   recordId: string;
@@ -21,6 +26,7 @@ export interface Category {
   color: string;
   type: TransactionType | 'both';
   isDefault: boolean;
+  subcategories: SubCategory[];
   createdAt?: string;
   updatedAt?: string;
 }
@@ -33,6 +39,7 @@ export interface Transaction {
   amount: number;
   type: TransactionType;
   category: Category | string;
+  subCategory?: string | null;
   paymentMethod: PaymentMethod;
   date: string;
   note?: string;

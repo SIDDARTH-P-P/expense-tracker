@@ -15,6 +15,7 @@ export interface TransactionInput {
   amount: number;
   type: 'income' | 'expense';
   category: string;
+  subCategory?: string | null;
   paymentMethod: 'cash' | 'card' | 'upi' | 'bank_transfer' | 'other';
   date: string;
   note?: string;
@@ -75,6 +76,7 @@ export const transactionService = {
       recordId: await generateRecordId(input.type === 'income' ? 'INC' : 'EXP'),
       userId: new Types.ObjectId(userId),
       category: new Types.ObjectId(input.category),
+      subCategory: input.subCategory || null,
       date: parseDate(input.date),
     });
   },
@@ -89,6 +91,7 @@ export const transactionService = {
       amount: original.amount,
       type: original.type,
       category: getObjectId(original.category),
+      subCategory: (original as any).subCategory || null,
       paymentMethod: original.paymentMethod,
       date: new Date(),
       note: original.note,

@@ -4,18 +4,19 @@ import { useState, useMemo, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import * as Icons from 'react-icons/fi';
 import type { IconType } from 'react-icons';
-import { FiSearch, FiCheck, FiChevronDown, FiX } from 'react-icons/fi';
+import { FiSearch, FiCheck, FiChevronDown, FiX, FiCornerDownRight } from 'react-icons/fi';
 import type { Category } from '@/types';
 import { cn } from '@/lib/utils/cn';
 
 interface QuickCategoryPickerProps {
   categories: Category[];
   value: string;
-  onChange: (id: string) => void;
+  subValue?: string | null;
+  onChange: (id: string, subName?: string | null) => void;
   error?: string;
 }
 
-export function QuickCategoryPicker({ categories, value, onChange, error }: QuickCategoryPickerProps) {
+export function QuickCategoryPicker({ categories, value, subValue, onChange, error }: QuickCategoryPickerProps) {
   const [search, setSearch] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -48,14 +49,20 @@ export function QuickCategoryPicker({ categories, value, onChange, error }: Quic
   }, []);
 
   function handleSelect(cat: Category) {
-    onChange(cat.id);
+    onChange(cat.id, null);
+    setDropdownOpen(false);
+    setSearch('');
+  }
+
+  function handleSelectSub(catId: string, subName: string) {
+    onChange(catId, subName);
     setDropdownOpen(false);
     setSearch('');
   }
 
   function handleClear(e: React.MouseEvent) {
     e.stopPropagation();
-    onChange('');
+    onChange('', null);
     setSearch('');
   }
 
@@ -100,7 +107,9 @@ export function QuickCategoryPicker({ categories, value, onChange, error }: Quic
                 );
               })()}
               <span className="flex min-w-0 flex-1 flex-col">
-                <span className="truncate font-medium text-foreground">{selectedCategory.name}</span>
+                <span className="truncate font-medium text-foreground">
+                  {subValue ? `${selectedCategory.name} › ${subValue}` : selectedCategory.name}
+                </span>
                 <span className="truncate text-[10px] uppercase text-muted">{selectedCategory.type} · {selectedCategory.recordId}</span>
               </span>
               <button
@@ -148,50 +157,76 @@ export function QuickCategoryPicker({ categories, value, onChange, error }: Quic
                 />
               </div>
 
-              {/* Category grid inside dropdown */}
-              <div className="max-h-56 overflow-y-auto p-2">
+              {/* Category list inside dropdown */}
+              <div className="max-h-64 overflow-y-auto p-2">
                 {filtered.length === 0 ? (
                   <div className="py-4 text-center text-xs text-muted">No categories found</div>
                 ) : (
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {filtered.map((cat, i) => {
+                  <div className="flex flex-col gap-1">
+                    {filtered.map((cat) => {
                       const Icon = (Icons[cat.icon as keyof typeof Icons] ?? Icons.FiTag) as IconType;
-                      const isSelected = value === cat.id;
+                      const isCatSelected = value === cat.id && !subValue;
+                      const hasSubs = cat.subcategories && cat.subcategories.length > 0;
+
                       return (
-                        <motion.button
-                          key={cat.id}
-                          type="button"
-                          initial={{ opacity: 0, scale: 0.92 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          transition={{ delay: i * 0.015, duration: 0.18 }}
-                          onClick={() => handleSelect(cat)}
-                          className={cn(
-                            'relative flex flex-col items-center gap-1.5 rounded-2xl border-2 p-2.5 text-center transition-all duration-200 active:scale-95',
-                            isSelected
-                              ? 'border-primary bg-primary/8 shadow-soft'
-                              : 'border-border bg-surface-2/60 hover:border-border/80 hover:bg-surface-2'
-                          )}
-                        >
-                          {isSelected && (
-                            <motion.span
-                              initial={{ scale: 0 }}
-                              animate={{ scale: 1 }}
-                              className="absolute right-1.5 top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-white"
-                            >
-                              <FiCheck size={10} strokeWidth={3} />
-                            </motion.span>
-                          )}
-                          <div
-                            className="flex h-8 w-8 items-center justify-center rounded-xl"
-                            style={{ backgroundColor: `${cat.color}20`, color: cat.color }}
+                        <div key={cat.id} className="flex flex-col gap-0.5">
+                          {/* Parent category row */}
+                          <button
+                            type="button"
+                            onClick={() => handleSelect(cat)}
+                            className={cn(
+                              'flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-sm transition-colors text-left',
+                              isCatSelected
+                                ? 'bg-primary/10 text-primary'
+                                : 'text-foreground hover:bg-surface-2'
+                            )}
                           >
-                            <Icon size={15} />
-                          </div>
-                          <span className="max-w-full truncate text-sm font-medium text-foreground">
-                            {cat.name}
-                          </span>
-                          <span className="max-w-full truncate text-[10px] uppercase text-muted">{cat.type}</span>
-                        </motion.button>
+                            <span
+                              className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
+                              style={{ backgroundColor: `${cat.color}20`, color: cat.color }}
+                            >
+                              <Icon size={13} />
+                            </span>
+                            <span className="flex-1 truncate font-medium">{cat.name}</span>
+                            <span
+                              className={cn(
+                                'shrink-0 rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase',
+                                cat.type === 'income' ? 'bg-income/10 text-income'
+                                  : cat.type === 'both' ? 'bg-warning/10 text-warning'
+                                  : 'bg-expense/10 text-expense'
+                              )}
+                            >
+                              {cat.type}
+                            </span>
+                            {isCatSelected && <FiCheck size={13} className="shrink-0 text-primary" />}
+                          </button>
+
+                          {/* Subcategory rows — indented */}
+                          {hasSubs && (
+                            <div className="ml-5 flex flex-col gap-0.5 border-l-2 border-border/40 pl-2">
+                              {cat.subcategories.map((sub) => {
+                                const isSubSelected = value === cat.id && subValue === sub.name;
+                                return (
+                                  <button
+                                    key={sub.id}
+                                    type="button"
+                                    onClick={() => handleSelectSub(cat.id, sub.name)}
+                                    className={cn(
+                                      'flex w-full items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs transition-colors text-left',
+                                      isSubSelected
+                                        ? 'bg-primary/10 text-primary font-semibold'
+                                        : 'text-muted hover:bg-surface-2 hover:text-foreground'
+                                    )}
+                                  >
+                                    <FiCornerDownRight size={11} className="shrink-0 opacity-50" />
+                                    <span className="flex-1 truncate">{sub.name}</span>
+                                    {isSubSelected && <FiCheck size={11} className="shrink-0 text-primary" />}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
                       );
                     })}
                   </div>
@@ -220,7 +255,9 @@ export function QuickCategoryPicker({ categories, value, onChange, error }: Quic
               </span>
             );
           })()}
-          <span className="text-xs font-medium text-foreground">{selectedCategory.name}</span>
+          <span className="text-xs font-medium text-foreground">
+            {subValue ? `${selectedCategory.name} › ${subValue}` : selectedCategory.name}
+          </span>
           <span className="font-mono text-[10px] text-primary">{selectedCategory.recordId}</span>
         </motion.div>
       )}

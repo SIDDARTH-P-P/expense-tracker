@@ -1,5 +1,10 @@
 import { Schema, model, models, type Document, type Types } from 'mongoose';
 
+export interface ISubCategory {
+  _id?: Types.ObjectId;
+  name: string;
+}
+
 export interface ICategory extends Document {
   recordId?: string;
   userId: Types.ObjectId;
@@ -8,9 +13,14 @@ export interface ICategory extends Document {
   color: string;
   type: 'income' | 'expense' | 'both';
   isDefault: boolean;
+  subcategories: ISubCategory[];
   createdAt: Date;
   updatedAt: Date;
 }
+
+const SubCategorySchema = new Schema<ISubCategory>({
+  name: { type: String, required: true, trim: true, maxlength: 40 },
+});
 
 const CategorySchema = new Schema<ICategory>(
   {
@@ -21,6 +31,7 @@ const CategorySchema = new Schema<ICategory>(
     color: { type: String, required: true, default: '#2DD4BF' },
     type: { type: String, enum: ['income', 'expense', 'both'], default: 'expense' },
     isDefault: { type: Boolean, default: false },
+    subcategories: { type: [SubCategorySchema], default: [] },
   },
   { timestamps: true }
 );
