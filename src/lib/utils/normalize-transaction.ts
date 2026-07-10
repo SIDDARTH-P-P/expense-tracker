@@ -52,6 +52,7 @@ export function normalizeCategory(value: unknown): Category | string {
 
   return {
     id,
+    recordId: typeof category.recordId === 'string' ? category.recordId : id,
     userId: stringifyId(category.userId),
     name: typeof category.name === 'string' ? category.name : '',
     icon: typeof category.icon === 'string' ? category.icon : 'FiTag',
@@ -66,6 +67,7 @@ export function normalizeTransaction(value: unknown): Transaction {
 
   return {
     id: stringifyId(transaction.id ?? transaction._id),
+    recordId: typeof transaction.recordId === 'string' ? transaction.recordId : stringifyId(transaction.id ?? transaction._id),
     userId: stringifyId(transaction.userId),
     title: typeof transaction.title === 'string' ? transaction.title : '',
     amount: typeof transaction.amount === 'number' ? transaction.amount : Number(transaction.amount ?? 0),

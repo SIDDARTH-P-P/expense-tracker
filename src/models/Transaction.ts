@@ -1,6 +1,7 @@
 import { Schema, model, models, type Document, type Types } from 'mongoose';
 
 export interface ITransaction extends Document {
+  recordId?: string;
   userId: Types.ObjectId;
   title: string;
   amount: number;
@@ -15,6 +16,7 @@ export interface ITransaction extends Document {
 
 const TransactionSchema = new Schema<ITransaction>(
   {
+    recordId: { type: String, trim: true, immutable: true },
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     title: { type: String, required: true, trim: true, maxlength: 120 },
     amount: { type: Number, required: true, min: 0.01 },
@@ -32,5 +34,6 @@ const TransactionSchema = new Schema<ITransaction>(
 );
 
 TransactionSchema.index({ userId: 1, date: -1 });
+TransactionSchema.index({ recordId: 1 }, { unique: true, sparse: true });
 
 export default models.Transaction || model<ITransaction>('Transaction', TransactionSchema);

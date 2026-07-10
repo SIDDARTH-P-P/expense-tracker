@@ -5,6 +5,7 @@ import type { Transaction, Category } from '@/types';
 
 function toRows(transactions: Transaction[], currency: string) {
   return transactions.map((t) => ({
+    'Record ID': t.recordId,
     Date: formatDate(t.date, 'long'),
     Title: t.title,
     Category: (t.category as Category).name,

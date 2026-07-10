@@ -1,4 +1,6 @@
 import { transactionRepository } from '@/repositories/transaction.repository';
+import { categoryRepository } from '@/repositories/category.repository';
+import { generateRecordId } from '@/lib/generateRecordId';
 import type { ITransaction } from '@/models/Transaction';
 import type { ICategory } from '@/models/Category';
 
@@ -26,6 +28,23 @@ function pctChange(current: number, previous: number) {
 
 export const dashboardService = {
   async getSummary(userId: string) {
+    const [missingTransactions, missingCategories] = await Promise.all([
+      transactionRepository.findMissingRecordIds(userId),
+      categoryRepository.findMissingRecordIds(userId),
+    ]);
+
+    await Promise.all([
+      ...missingTransactions.map(async (transaction) =>
+        transactionRepository.setRecordId(
+          String(transaction._id),
+          await generateRecordId(transaction.type === 'income' ? 'INC' : 'EXP')
+        )
+      ),
+      ...missingCategories.map(async (category) =>
+        categoryRepository.setRecordId(String(category._id), await generateRecordId('CAT'))
+      ),
+    ]);
+
     const now = new Date();
     const thisMonthStart = startOfMonth(now);
     const thisMonthEnd = endOfMonth(now);

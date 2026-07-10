@@ -1,6 +1,7 @@
 import { connectDB } from '@/lib/db';
 import Transaction, { type ITransaction } from '@/models/Transaction';
-import type { FilterQuery } from 'mongoose';
+import Category from '@/models/Category';
+import mongoose, { type FilterQuery } from 'mongoose';
 
 export interface TransactionQueryOptions {
   search?: string;
@@ -30,7 +31,23 @@ export const transactionRepository = {
     } = opts;
 
     const filter: FilterQuery<ITransaction> = { userId };
-    if (search) filter.title = { $regex: search, $options: 'i' };
+    if (search?.trim()) {
+      const q = search.trim();
+      const matchedCategories = await Category.find({
+        userId,
+        $or: [
+          { name: { $regex: q, $options: 'i' } },
+          { recordId: { $regex: q, $options: 'i' } },
+        ],
+      }).select('_id');
+
+      filter.$or = [
+        { title: { $regex: q, $options: 'i' } },
+        { note: { $regex: q, $options: 'i' } },
+        { recordId: { $regex: q, $options: 'i' } },
+        ...(matchedCategories.length ? [{ category: { $in: matchedCategories.map((category) => category._id) } }] : []),
+      ];
+    }
     if (type) filter.type = type;
     if (category) filter.category = category;
     if (from || to) {
@@ -55,7 +72,14 @@ export const transactionRepository = {
 
   async findById(id: string, userId: string) {
     await connectDB();
-    return Transaction.findOne({ _id: id, userId }).populate('category');
+    const candidates: FilterQuery<ITransaction>[] = [{ recordId: id }];
+    if (mongoose.isValidObjectId(id)) candidates.push({ _id: id });
+    return Transaction.findOne({ userId, $or: candidates }).populate('category');
+  },
+
+  async findMissingRecordIds(userId: string) {
+    await connectDB();
+    return Transaction.find({ userId, recordId: { $exists: false } }).select('_id type');
   },
 
   async findAllByUser(userId: string) {
@@ -71,7 +95,9 @@ export const transactionRepository = {
 
   async updateById(id: string, userId: string, data: Partial<ITransaction>) {
     await connectDB();
-    return Transaction.findOneAndUpdate({ _id: id, userId }, data, {
+    const candidates: FilterQuery<ITransaction>[] = [{ recordId: id }];
+    if (mongoose.isValidObjectId(id)) candidates.push({ _id: id });
+    return Transaction.findOneAndUpdate({ userId, $or: candidates }, data, {
       new: true,
       runValidators: true,
     }).populate('category');
@@ -79,7 +105,14 @@ export const transactionRepository = {
 
   async deleteById(id: string, userId: string) {
     await connectDB();
-    return Transaction.findOneAndDelete({ _id: id, userId });
+    const candidates: FilterQuery<ITransaction>[] = [{ recordId: id }];
+    if (mongoose.isValidObjectId(id)) candidates.push({ _id: id });
+    return Transaction.findOneAndDelete({ userId, $or: candidates });
+  },
+
+  async setRecordId(id: string, recordId: string) {
+    await connectDB();
+    return Transaction.updateOne({ _id: id, recordId: { $exists: false } }, { $set: { recordId } });
   },
 
   async findInRange(userId: string, from: Date, to: Date) {

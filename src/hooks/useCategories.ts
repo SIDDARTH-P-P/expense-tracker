@@ -17,12 +17,12 @@ export function categoriesQueryKey(userId?: string | null) {
   return ['categories', userId ?? 'guest'] as const;
 }
 
-export function useCategories() {
+export function useCategories(search?: string) {
   // Read the logged-in user's id from the Zustand auth store.
   const userId = useAuthStore((s) => s.user?.id);
   return useQuery({
-    queryKey: categoriesQueryKey(userId),
-    queryFn: () => apiClient.get<Category[]>('/categories'),
+    queryKey: [...categoriesQueryKey(userId), search ?? ''],
+    queryFn: () => apiClient.get<Category[]>(`/categories${search ? `?search=${encodeURIComponent(search)}` : ''}`),
     // Don't fetch if there's no authenticated user yet.
     enabled: !!userId,
     staleTime: 5 * 60 * 1000,
@@ -34,9 +34,9 @@ export function useCreateCategory() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: CategoryFormValues) => apiClient.post<Category>('/categories', input),
-    onSuccess: () => {
+    onSuccess: (created) => {
       qc.invalidateQueries({ queryKey: categoriesQueryKey(userId) });
-      toast.success('Category created.');
+      toast.success(`Category ${created.recordId} created.`);
     },
     onError: (err: ApiClientError) => toast.error(err.message),
   });
@@ -48,9 +48,9 @@ export function useUpdateCategory() {
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: Partial<CategoryFormValues> }) =>
       apiClient.patch<Category>(`/categories/${id}`, input),
-    onSuccess: () => {
+    onSuccess: (updated) => {
       qc.invalidateQueries({ queryKey: categoriesQueryKey(userId) });
-      toast.success('Category updated.');
+      toast.success(`Category ${updated.recordId} updated.`);
     },
     onError: (err: ApiClientError) => toast.error(err.message),
   });

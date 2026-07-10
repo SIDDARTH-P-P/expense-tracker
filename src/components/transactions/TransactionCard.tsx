@@ -107,11 +107,11 @@ function TransactionCardInner({ transaction, currency, compact, onEdit, onDelete
           dragElastic={0.1}
           style={{ x, opacity: cardOpacity }}
           onDragEnd={handleDragEnd}
-          className="relative flex touch-pan-y select-none items-start gap-3 rounded-2xl border border-border bg-surface p-3 transition-colors hover:border-border/80 hover:shadow-soft sm:items-center sm:p-3.5 cursor-grab active:cursor-grabbing"
+          className="relative flex touch-pan-y select-none items-center gap-3 rounded-2xl border border-border bg-surface p-3 transition-colors hover:border-border/80 hover:shadow-soft sm:p-3.5 cursor-grab active:cursor-grabbing"
         >
           {/* Category icon */}
           <div
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl shadow-soft"
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl shadow-soft"
             style={{ backgroundColor: `${category?.color ?? '#888'}18`, color: category?.color ?? '#888' }}
           >
             <Icon size={18} />
@@ -132,6 +132,12 @@ function TransactionCardInner({ transaction, currency, compact, onEdit, onDelete
                 {formatDate(transaction.date)}
                 {!compact && ` · ${formatTime(transaction.date)}`}
               </span>
+              {/* {transaction.recordId && (
+                <>
+                  <span className="hidden opacity-40 sm:inline">·</span>
+                  <span className="whitespace-nowrap font-mono text-[10px] uppercase text-primary">{transaction.recordId}</span>
+                </>
+              )} */}
             </div>
             {/* Note preview */}
             {!compact && transaction.note && (
@@ -144,10 +150,10 @@ function TransactionCardInner({ transaction, currency, compact, onEdit, onDelete
             <p className={`amount max-w-[116px] truncate whitespace-nowrap text-right text-sm font-bold sm:max-w-none ${isIncome ? 'text-income' : 'text-expense'}`}>
               {isIncome ? '+' : '−'}{formatCurrency(transaction.amount, currency)}
             </p>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1.5">
               {/* Payment method badge */}
               <span
-                className="shrink-0 rounded-lg bg-surface-2 px-1.5 py-0.5 text-[11px] text-muted"
+                className="inline-flex h-5 items-center justify-center shrink-0 rounded-lg bg-surface-2 px-1.5 text-[11px] text-muted"
                 title={transaction.paymentMethod}
               >
                 {PAYMENT_ICONS[transaction.paymentMethod] ?? '💰'}
@@ -161,7 +167,7 @@ function TransactionCardInner({ transaction, currency, compact, onEdit, onDelete
                     onPointerDown={stopCardDrag}
                     disabled={!canEdit}
                     aria-label="Edit"
-                    className="rounded-lg p-1.5 text-muted transition-colors hover:bg-primary/10 hover:text-primary"
+                    className="flex h-7.5 w-7.5 items-center justify-center rounded-lg text-muted transition-colors hover:bg-primary/10 hover:text-primary"
                   >
                     <FiEdit2 size={12} />
                   </button>
@@ -170,7 +176,7 @@ function TransactionCardInner({ transaction, currency, compact, onEdit, onDelete
                     onPointerDown={stopCardDrag}
                     disabled={!transactionId || duplicateTx.isPending}
                     aria-label="Duplicate"
-                    className="rounded-lg p-1.5 text-muted transition-colors hover:bg-surface-2 hover:text-foreground"
+                    className="flex h-7.5 w-7.5 items-center justify-center rounded-lg text-muted transition-colors hover:bg-surface-2 hover:text-foreground"
                   >
                     <FiCopy size={12} />
                   </button>
@@ -179,7 +185,7 @@ function TransactionCardInner({ transaction, currency, compact, onEdit, onDelete
                     onPointerDown={stopCardDrag}
                     disabled={!canDelete}
                     aria-label="Delete"
-                    className="rounded-lg p-1.5 text-muted transition-colors hover:bg-expense/10 hover:text-expense"
+                    className="flex h-7.5 w-7.5 items-center justify-center rounded-lg text-muted transition-colors hover:bg-expense/10 hover:text-expense"
                   >
                     <FiTrash2 size={12} />
                   </button>
@@ -192,7 +198,7 @@ function TransactionCardInner({ transaction, currency, compact, onEdit, onDelete
                   onClick={() => setShowActions((s) => !s)}
                   onPointerDown={stopCardDrag}
                   disabled={!transactionId}
-                  className="sm:hidden rounded-lg p-1.5 text-muted hover:bg-surface-2"
+                  className="sm:hidden flex h-7.5 w-7.5 items-center justify-center rounded-lg text-muted hover:bg-surface-2"
                   aria-label="More actions"
                 >
                   <FiMoreVertical size={13} />

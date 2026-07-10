@@ -6,6 +6,9 @@ import { BottomNav } from './BottomNav';
 import { FloatingAddButton } from './FloatingAddButton';
 import { BottomSheet } from '@/components/common/BottomSheet';
 import { TransactionForm } from '@/components/forms/TransactionForm';
+import { CategoryModal } from '@/components/management/CategoryModal';
+import { SplitModal } from '@/components/management/SplitModal';
+import { SplitUserModal } from '@/components/management/SplitUserModal';
 import { useUIStore } from '@/store/ui.store';
 import { useCreateTransaction } from '@/hooks/useTransactions';
 
@@ -20,11 +23,21 @@ import { useCreateTransaction } from '@/hooks/useTransactions';
 export function AppShell({ children }: { children: React.ReactNode }) {
   const isAddSheetOpen = useUIStore((s) => s.isAddSheetOpen);
   const closeAddSheet = useUIStore((s) => s.closeAddSheet);
+  const addSheetKind = useUIStore((s) => s.addSheetKind);
   const defaultType = useUIStore((s) => s.addSheetDefaultType);
   const createTransaction = useCreateTransaction();
+  const isTransactionSheet = addSheetKind === 'transaction';
+  const addSheetTitle =
+    addSheetKind === 'category'
+      ? 'Add category'
+      : addSheetKind === 'splitUser'
+        ? 'Add split user'
+        : addSheetKind === 'split'
+          ? 'Create split'
+          : 'Add transaction';
 
   return (
-    <div className="flex h-screen overflow-hidden bg-background">
+    <div className="flex h-[100dvh] overflow-hidden bg-background">
       {/* Desktop sidebar */}
       <Sidebar />
 
@@ -35,7 +48,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {/* Only this scrolls */}
         <main
           id="main-content"
-          className="flex-1 overflow-y-auto overscroll-contain px-4 pb-28 pt-4 sm:px-6 sm:pb-10 lg:px-8"
+          className="flex-1 overflow-y-auto overscroll-contain px-4 pb-28 sm:px-6 sm:pb-10 lg:px-8"
         >
           {children}
         </main>
@@ -51,18 +64,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <BottomSheet
         isOpen={isAddSheetOpen}
         onClose={closeAddSheet}
-        title="Add transaction"
-        showHeader={false}
-        className="h-[100dvh] max-h-[100dvh] rounded-none border-0 bg-surface p-0 sm:h-[92vh] sm:max-w-[430px] sm:rounded-2xl sm:border sm:p-0"
+        title={addSheetTitle}
+        showHeader={!isTransactionSheet && addSheetKind !== 'category'}
+        className={
+          isTransactionSheet || addSheetKind === 'category'
+            ? 'h-[100dvh] max-h-[100dvh] rounded-none border-0 bg-surface p-0 sm:h-[92vh] sm:max-w-[430px] sm:rounded-2xl sm:border sm:p-0'
+            : undefined
+        }
       >
-        <TransactionForm
-          defaultType={defaultType}
-          isSubmitting={createTransaction.isPending}
-          onCancel={closeAddSheet}
-          onSubmit={(values, intent) =>
-            createTransaction.mutate(values, { onSuccess: intent === 'saveAndNew' ? undefined : closeAddSheet })
-          }
-        />
+        {addSheetKind === 'transaction' && (
+          <TransactionForm
+            defaultType={defaultType}
+            isSubmitting={createTransaction.isPending}
+            onCancel={closeAddSheet}
+            onSubmit={(values, intent) =>
+              createTransaction.mutate(values, { onSuccess: intent === 'saveAndNew' ? undefined : closeAddSheet })
+            }
+          />
+        )}
+        {addSheetKind === 'category' && <CategoryModal onClose={closeAddSheet} />}
+        {addSheetKind === 'splitUser' && <SplitUserModal onClose={closeAddSheet} />}
+        {addSheetKind === 'split' && <SplitModal onClose={closeAddSheet} />}
       </BottomSheet>
     </div>
   );

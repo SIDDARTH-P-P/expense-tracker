@@ -27,7 +27,12 @@ export function QuickCategoryPicker({ categories, value, onChange, error }: Quic
   const filtered = useMemo(() => {
     if (!search.trim()) return categories;
     const q = search.toLowerCase();
-    return categories.filter((c) => c.name.toLowerCase().includes(q));
+    return categories.filter(
+      (c) =>
+        c.name.toLowerCase().includes(q) ||
+        c.type.toLowerCase().includes(q) ||
+        c.recordId.toLowerCase().includes(q)
+    );
   }, [categories, search]);
 
   // Close dropdown on outside click
@@ -94,7 +99,10 @@ export function QuickCategoryPicker({ categories, value, onChange, error }: Quic
                   </span>
                 );
               })()}
-              <span className="flex-1 truncate font-medium text-foreground">{selectedCategory.name}</span>
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate font-medium text-foreground">{selectedCategory.name}</span>
+                <span className="truncate text-[10px] uppercase text-muted">{selectedCategory.type} · {selectedCategory.recordId}</span>
+              </span>
               <button
                 type="button"
                 onClick={handleClear}
@@ -179,9 +187,10 @@ export function QuickCategoryPicker({ categories, value, onChange, error }: Quic
                           >
                             <Icon size={15} />
                           </div>
-                          <span className="text-sm font-medium text-foreground">
+                          <span className="max-w-full truncate text-sm font-medium text-foreground">
                             {cat.name}
                           </span>
+                          <span className="max-w-full truncate text-[10px] uppercase text-muted">{cat.type}</span>
                         </motion.button>
                       );
                     })}
@@ -212,6 +221,7 @@ export function QuickCategoryPicker({ categories, value, onChange, error }: Quic
             );
           })()}
           <span className="text-xs font-medium text-foreground">{selectedCategory.name}</span>
+          <span className="font-mono text-[10px] text-primary">{selectedCategory.recordId}</span>
         </motion.div>
       )}
     </div>

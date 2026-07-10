@@ -1,8 +1,8 @@
 import { Types } from 'mongoose';
 import { transactionRepository, type TransactionQueryOptions } from '@/repositories/transaction.repository';
-import { categoryRepository } from '@/repositories/category.repository';
 import { connectDB } from '@/lib/db';
 import Category from '@/models/Category';
+import { generateRecordId } from '@/lib/generateRecordId';
 
 export class TransactionError extends Error {
   constructor(message: string, public status = 400) {
@@ -35,11 +35,25 @@ function getObjectId(value: unknown): Types.ObjectId {
 }
 
 export const transactionService = {
+  async ensureRecordIds(userId: string) {
+    const missing = await transactionRepository.findMissingRecordIds(userId);
+    await Promise.all(
+      missing.map(async (transaction) =>
+        transactionRepository.setRecordId(
+          String(transaction._id),
+          await generateRecordId(transaction.type === 'income' ? 'INC' : 'EXP')
+        )
+      )
+    );
+  },
+
   async list(userId: string, opts: TransactionQueryOptions) {
+    await this.ensureRecordIds(userId);
     return transactionRepository.findAllForUser(userId, opts);
   },
 
   async get(userId: string, id: string) {
+    await this.ensureRecordIds(userId);
     const tx = await transactionRepository.findById(id, userId);
     if (!tx) throw new TransactionError('Transaction not found.', 404);
     return tx;
@@ -58,6 +72,7 @@ export const transactionService = {
 
     return transactionRepository.create({
       ...input,
+      recordId: await generateRecordId(input.type === 'income' ? 'INC' : 'EXP'),
       userId: new Types.ObjectId(userId),
       category: new Types.ObjectId(input.category),
       date: parseDate(input.date),
@@ -68,6 +83,7 @@ export const transactionService = {
     const original = await transactionRepository.findById(id, userId);
     if (!original) throw new TransactionError('Transaction not found.', 404);
     return transactionRepository.create({
+      recordId: await generateRecordId(original.type === 'income' ? 'INC' : 'EXP'),
       userId: original.userId,
       title: `${original.title} (copy)`,
       amount: original.amount,

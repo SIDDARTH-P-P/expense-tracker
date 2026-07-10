@@ -14,16 +14,20 @@ export interface User {
 
 export interface Category {
   id: string;
+  recordId: string;
   userId: string;
   name: string;
   icon: string;
   color: string;
   type: TransactionType | 'both';
   isDefault: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface Transaction {
   id: string;
+  recordId: string;
   userId: string;
   title: string;
   amount: number;
@@ -32,6 +36,37 @@ export interface Transaction {
   paymentMethod: PaymentMethod;
   date: string;
   note?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SplitUser {
+  id: string;
+  recordId: string;
+  userId: string;
+  name: string;
+  email: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type SplitMode = 'equal' | 'custom';
+
+export interface SplitMember {
+  userId: SplitUser | string;
+  shareAmount: number;
+  paid: boolean;
+}
+
+export interface Split {
+  id: string;
+  recordId: string;
+  userId: string;
+  title: string;
+  amount: number;
+  paidBy: SplitUser | string;
+  splitMode: SplitMode;
+  members: SplitMember[];
   createdAt: string;
   updatedAt: string;
 }

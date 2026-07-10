@@ -23,7 +23,10 @@ export function Header() {
   const { theme, toggleTheme } = useTheme();
 
   return (
-    <header className="sticky top-0 z-30 w-full border-b border-border/60 bg-background/80 backdrop-blur-xl backdrop-saturate-150">
+    <header
+      className="sticky top-0 z-30 w-full border-b border-border/60 bg-background"
+      style={{ paddingTop: 'env(safe-area-inset-top)' }}
+    >
       <div className="flex items-center gap-3 px-4 py-3 sm:px-6 lg:px-8">
         {/* Left — greeting + name */}
         <div className="min-w-0 flex-1">
@@ -70,6 +73,7 @@ export function Header() {
                 animate={{ rotate: 0, opacity: 1 }}
                 exit={{ rotate: 90, opacity: 0 }}
                 transition={{ duration: 0.2 }}
+                className="flex items-center justify-center"
               >
                 {theme === 'dark' ? <FiSun size={16} /> : <FiMoon size={16} />}
               </motion.span>

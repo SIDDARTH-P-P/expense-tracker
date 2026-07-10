@@ -20,6 +20,7 @@ import { useEffect, useRef, useState } from 'react';
 import { transactionSchema, type TransactionFormValues } from '@/lib/validations/transaction.schema';
 import { useCategories } from '@/hooks/useCategories';
 import { cn } from '@/lib/utils/cn';
+import { QuickCategoryPicker } from '@/components/forms/QuickCategoryPicker';
 import type { Transaction } from '@/types';
 
 type SubmitIntent = 'save' | 'saveAndNew';
@@ -510,6 +511,7 @@ export function TransactionForm({ defaultType = 'expense', initialData, onSubmit
 
   const type = watch('type');
   const paymentMethod = watch('paymentMethod');
+  const categoryValue = watch('category');
   const currentDate = parseDatetimeLocal(watch('date'));
   const filteredCategories = categories.filter((category) => category.type === type || category.type === 'both');
   const isIncome = type === 'income';
@@ -553,6 +555,7 @@ export function TransactionForm({ defaultType = 'expense', initialData, onSubmit
       <input type="hidden" {...register('paymentMethod')} />
       <input type="hidden" {...register('date')} />
       <input type="hidden" {...register('note')} />
+      <input type="hidden" {...register('category')} />
 
       <div className="flex h-16 shrink-0 items-center justify-between border-b border-border bg-surface px-3 sm:h-[74px] sm:px-5">
         <button type="button" onClick={onCancel} className="grid h-10 w-10 shrink-0 place-items-center text-foreground sm:h-11 sm:w-11" aria-label="Back">
@@ -676,21 +679,12 @@ export function TransactionForm({ defaultType = 'expense', initialData, onSubmit
           </div>
 
           <div>
-            <FieldShell className={errors.category ? 'border-expense focus-within:border-expense' : undefined}>
-              <select
-                className="h-full w-full appearance-none bg-transparent px-5 pr-12 text-lg font-light text-foreground outline-none disabled:text-muted sm:px-8 sm:pr-14 sm:text-[24px]"
-                {...register('category')}
-              >
-                <option value="">Category</option>
-                {filteredCategories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
-              <FiChevronDown size={22} className="pointer-events-none absolute right-5 top-1/2 -translate-y-1/2 text-muted sm:right-8 sm:size-6" />
-            </FieldShell>
-            {errors.category && <p className="mt-2 text-sm font-medium text-expense">{errors.category.message}</p>}
+            <QuickCategoryPicker
+              categories={filteredCategories}
+              value={categoryValue}
+              onChange={(id) => setValue('category', id, { shouldDirty: true, shouldValidate: true })}
+              error={errors.category?.message}
+            />
           </div>
 
           <div>

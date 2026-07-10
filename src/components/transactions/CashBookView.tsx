@@ -162,7 +162,7 @@ export function CashBookView({ transactions, currency }: CashBookViewProps) {
                 <div className="flex min-w-0 flex-col">
                   <span className="truncate font-medium">{tx.title}</span>
                   <span className="text-xs text-muted">
-                    {cat?.name ?? '—'} · {formatTimeLabel(tx.date)}
+                    {cat?.name ?? '—'} · {formatTimeLabel(tx.date)} · {tx.recordId}
                   </span>
                 </div>
                 <span className="w-20 self-center text-right text-xs capitalize text-muted">

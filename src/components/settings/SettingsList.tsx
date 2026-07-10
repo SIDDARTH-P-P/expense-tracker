@@ -4,6 +4,7 @@ import { FiMoon, FiSun, FiDollarSign, FiGlobe, FiLogOut, FiTrash2 } from 'react-
 import { useState } from 'react';
 import { useTheme } from '@/hooks/useTheme';
 import { useCurrentUser, useLogout } from '@/hooks/useAuth';
+import { useQueryClient } from '@tanstack/react-query';
 import { Select } from '@/components/common/Select';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { CURRENCIES } from '@/constants/currencies';
@@ -35,11 +36,16 @@ export function SettingsList() {
   const { theme, toggleTheme } = useTheme();
   const { data: user } = useCurrentUser();
   const logout = useLogout();
+  const qc = useQueryClient();
   const [showDeleteAccount, setShowDeleteAccount] = useState(false);
 
   async function updateCurrency(currency: string) {
     try {
       await apiClient.patch('/settings', { currency });
+      qc.invalidateQueries({ queryKey: ['auth', 'me'] });
+      qc.invalidateQueries({ queryKey: ['dashboard', 'summary'] });
+      qc.invalidateQueries({ queryKey: ['splits'] });
+      qc.invalidateQueries({ queryKey: ['transactions'] });
       toast.success('Currency updated.');
     } catch {
       toast.error('Could not update currency.');

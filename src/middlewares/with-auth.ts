@@ -16,7 +16,12 @@ type AuthHandler<T extends unknown[]> = (
 export function withAuth<T extends unknown[]>(handler: AuthHandler<T>) {
   return async (req: NextRequest, ...args: T) => {
     const user = await getCurrentUser();
-    if (!user) return apiError('Unauthorized. Please log in again.', 401);
+    if (!user) {
+      const res = apiError('Unauthorized. Please log in again.', 401);
+      res.headers.append('Set-Cookie', 'et_access_token=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax');
+      res.headers.append('Set-Cookie', 'et_refresh_token=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax');
+      return res;
+    }
     return handler(req, user, ...args);
   };
 }
@@ -28,7 +33,12 @@ export function withAuth<T extends unknown[]>(handler: AuthHandler<T>) {
 export function withAdmin<T extends unknown[]>(handler: AuthHandler<T>) {
   return async (req: NextRequest, ...args: T) => {
     const user = await getCurrentUser();
-    if (!user) return apiError('Unauthorized. Please log in again.', 401);
+    if (!user) {
+      const res = apiError('Unauthorized. Please log in again.', 401);
+      res.headers.append('Set-Cookie', 'et_access_token=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax');
+      res.headers.append('Set-Cookie', 'et_refresh_token=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax');
+      return res;
+    }
     if (user.role !== 'admin') return apiError('Forbidden. Admin access required.', 403);
     return handler(req, user, ...args);
   };

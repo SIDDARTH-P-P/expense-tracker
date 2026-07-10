@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import { cookies } from 'next/headers';
 
 const JWT_SECRET = process.env.JWT_SECRET as string;
-const ACCESS_TOKEN_EXPIRY = '15m';
+const ACCESS_TOKEN_EXPIRY = '24h';
 const REFRESH_TOKEN_EXPIRY_DEFAULT = '1d';
 const REFRESH_TOKEN_EXPIRY_REMEMBER = '30d';
 
@@ -53,7 +53,7 @@ export async function setAuthCookies(payload: JwtPayload, rememberMe = false) {
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     path: '/',
-    maxAge: 60 * 15, // 15 minutes
+    maxAge: 60 * 60 * 24, // 24 hours
   });
 
   cookieStore.set(REFRESH_COOKIE, refreshToken, {
@@ -67,8 +67,8 @@ export async function setAuthCookies(payload: JwtPayload, rememberMe = false) {
 
 export async function clearAuthCookies() {
   const cookieStore = await cookies();
-  cookieStore.delete(ACCESS_COOKIE);
-  cookieStore.delete(REFRESH_COOKIE);
+  cookieStore.set(ACCESS_COOKIE, '', { path: '/', maxAge: 0 });
+  cookieStore.set(REFRESH_COOKIE, '', { path: '/', maxAge: 0 });
 }
 
 export async function getCurrentUser(): Promise<JwtPayload | null> {

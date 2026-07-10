@@ -28,13 +28,13 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
   const hasActiveFilters = !!(filters.type || filters.category || filters.search);
 
   return (
-    <div className="mb-5 flex flex-col gap-3">
+    <div className="flex flex-col gap-3">
       {/* Search */}
       <div className="relative">
         <FiSearch size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
         <input
           type="search"
-          placeholder="Search transactions..."
+          placeholder="Search title, category, or record ID..."
           value={filters.search ?? ''}
           onChange={(e) => onChange({ ...filters, search: e.target.value, page: 1 })}
           className="w-full rounded-2xl border border-border bg-surface py-3 pl-10 pr-10 text-sm placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 shadow-soft"

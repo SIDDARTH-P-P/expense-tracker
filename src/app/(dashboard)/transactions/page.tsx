@@ -69,78 +69,83 @@ export default function TransactionsPage() {
 
   return (
     <div className="mx-auto max-w-3xl">
-      {/* Page header */}
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <div>
-          <h2 className="font-display text-xl font-bold">Transactions</h2>
-          <p className="text-xs text-muted mt-0.5">{totalCount} total records</p>
-        </div>
-
-        <div className="flex items-center gap-2">
-          {/* View toggle */}
-          <div className="flex items-center rounded-2xl border border-border bg-surface p-1 shadow-soft">
-            <button
-              onClick={() => setViewMode('list')}
-              title="List View"
-              className={cn(
-                'flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all duration-200',
-                viewMode === 'list'
-                  ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'text-muted hover:text-foreground'
-              )}
-            >
-              <FiList size={13} /> List
-            </button>
-            <button
-              onClick={() => setViewMode('cashbook')}
-              title="Cash Book"
-              className={cn(
-                'flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all duration-200',
-                viewMode === 'cashbook'
-                  ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'text-muted hover:text-foreground'
-              )}
-            >
-              <FiBook size={13} /> Book
-            </button>
+      {/* Sticky header: title, view toggle, filters */}
+      <div className="sticky top-0 z-20 -mx-4 border-b border-border bg-background px-4 pb-3 pt-3 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+        {/* Page header */}
+        <div className="mb-3 flex items-center justify-between gap-3">
+          <div>
+            <h2 className="font-display text-xl font-bold">Transactions</h2>
+            <p className="text-xs text-muted mt-0.5">{totalCount} total records</p>
           </div>
 
-          <Button variant="outline" size="sm" onClick={exportCSV} className="hidden sm:flex">
-            <FiDownload size={13} /> CSV
-          </Button>
+          <div className="flex items-center gap-2">
+            {/* View toggle */}
+            <div className="flex items-center rounded-2xl border border-border bg-surface p-1 shadow-soft">
+              <button
+                onClick={() => setViewMode('list')}
+                title="List View"
+                className={cn(
+                  'flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all duration-200',
+                  viewMode === 'list'
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-muted hover:text-foreground'
+                )}
+              >
+                <FiList size={13} /> List
+              </button>
+              <button
+                onClick={() => setViewMode('cashbook')}
+                title="Cash Book"
+                className={cn(
+                  'flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all duration-200',
+                  viewMode === 'cashbook'
+                    ? 'bg-primary text-primary-foreground shadow-sm'
+                    : 'text-muted hover:text-foreground'
+                )}
+              >
+                <FiBook size={13} /> Book
+              </button>
+            </div>
+
+            <Button variant="outline" size="sm" onClick={exportCSV} className="hidden sm:flex">
+              <FiDownload size={13} /> CSV
+            </Button>
+          </div>
         </div>
+
+        {/* Filters */}
+        <FilterBar
+          filters={filters}
+          onChange={(f) => setFilters(f)}
+        />
       </div>
 
-      {/* Filters */}
-      <FilterBar
-        filters={filters}
-        onChange={(f) => setFilters(f)}
-      />
-
       {/* Content */}
-      {viewMode === 'cashbook' ? (
-        cashbookLoading ? (
-          <div className="flex items-center justify-center py-16">
-            <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-          </div>
+      <div className="pt-3">
+        {viewMode === 'cashbook' ? (
+          cashbookLoading ? (
+            <div className="flex items-center justify-center py-16">
+              <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+            </div>
+          ) : (
+            <CashBookView
+              transactions={cashbookData?.items ?? []}
+              currency={user?.currency ?? 'USD'}
+            />
+          )
         ) : (
-          <CashBookView
-            transactions={cashbookData?.items ?? []}
+          <TransactionList
+            data={infiniteData}
             currency={user?.currency ?? 'USD'}
+            isLoading={listLoading}
+            isError={listError}
+            isFetchingNextPage={isFetchingNextPage}
+            hasNextPage={!!hasNextPage}
+            onRetry={() => refetchList()}
+            onFetchNextPage={fetchNextPage}
           />
-        )
-      ) : (
-        <TransactionList
-          data={infiniteData}
-          currency={user?.currency ?? 'USD'}
-          isLoading={listLoading}
-          isError={listError}
-          isFetchingNextPage={isFetchingNextPage}
-          hasNextPage={!!hasNextPage}
-          onRetry={() => refetchList()}
-          onFetchNextPage={fetchNextPage}
-        />
-      )}
+        )}
+      </div>
     </div>
   );
 }

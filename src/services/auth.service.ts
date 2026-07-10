@@ -1,7 +1,6 @@
 import { userRepository } from '@/repositories/user.repository';
-import { categoryRepository } from '@/repositories/category.repository';
+import { categoryService } from '@/services/category.service';
 import { hashPassword, verifyPassword } from '@/lib/auth';
-import { DEFAULT_CATEGORIES } from '@/constants/categories';
 
 export class AuthError extends Error {
   constructor(message: string, public status = 400) {
@@ -17,10 +16,7 @@ export const authService = {
     const hashed = await hashPassword(password);
     const user = await userRepository.create({ name, email, password: hashed });
 
-    // Seed default categories so the dashboard isn't empty on first login.
-    await categoryRepository.createMany(
-      DEFAULT_CATEGORIES.map((c) => ({ ...c, userId: user._id, isDefault: true }))
-    );
+    await categoryService.ensureDefaultCategories(user._id);
 
     return user;
   },

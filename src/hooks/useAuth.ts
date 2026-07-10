@@ -5,15 +5,20 @@ import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { apiClient, ApiClientError } from '@/services/api-client';
 import { useAuthStore } from '@/store/auth.store';
+import { useUIStore } from '@/store/ui.store';
 import type { User } from '@/types';
 
 export function useCurrentUser() {
   const setUser = useAuthStore((s) => s.setUser);
+  const setTheme = useUIStore((s) => s.setTheme);
   return useQuery({
     queryKey: ['auth', 'me'],
     queryFn: async () => {
       const user = await apiClient.get<User>('/auth/me');
       setUser(user);
+      if (user.theme) {
+        setTheme(user.theme);
+      }
       return user;
     },
     retry: false,
@@ -80,6 +85,13 @@ export function useLogout() {
       toast.success('Logged out successfully.');
       // router.refresh() tells Next.js server state changed (cookie deleted),
       // then push to /login so middleware sees no token.
+      router.refresh();
+      router.push('/login');
+    },
+    onError: () => {
+      setUser(null);
+      qc.clear();
+      toast.success('Logged out successfully.');
       router.refresh();
       router.push('/login');
     },

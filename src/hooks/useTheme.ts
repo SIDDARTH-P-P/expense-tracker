@@ -2,11 +2,14 @@
 
 import { useEffect } from 'react';
 import { useUIStore } from '@/store/ui.store';
+import { useAuthStore } from '@/store/auth.store';
+import { apiClient } from '@/services/api-client';
 
 /** Syncs the Zustand theme with localStorage + the OS preference on first mount. */
 export function useTheme() {
   const theme = useUIStore((s) => s.theme);
   const setTheme = useUIStore((s) => s.setTheme);
+  const user = useAuthStore((s) => s.user);
 
   useEffect(() => {
     const stored = localStorage.getItem('et-theme') as 'light' | 'dark' | null;
@@ -15,5 +18,17 @@ export function useTheme() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return { theme, setTheme, toggleTheme: useUIStore((s) => s.toggleTheme) };
+  const toggleTheme = async () => {
+    const nextTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(nextTheme);
+    if (user) {
+      try {
+        await apiClient.patch('/settings', { theme: nextTheme });
+      } catch (e) {
+        // Ignore background sync errors
+      }
+    }
+  };
+
+  return { theme, setTheme, toggleTheme };
 }

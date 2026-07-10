@@ -1,39 +1,31 @@
 import { withAuth } from '@/middlewares/with-auth';
-import { categoryService } from '@/services/category.service';
+import { categoryService, CategoryError } from '@/services/category.service';
 import { categorySchema } from '@/lib/validations/category.schema';
 import { apiSuccess, apiError } from '@/lib/utils/api-response';
+import { normalizeCategoryRecord } from '@/lib/utils/normalize-management';
 
-// Normalize a Mongoose category document to a plain object with `id`
-function normalizeCategory(cat: {
-  _id: { toString(): string };
-  userId: { toString(): string };
-  name: string;
-  icon: string;
-  color: string;
-  type: string;
-  isDefault: boolean;
-}) {
-  return {
-    id: cat._id.toString(),
-    userId: cat.userId.toString(),
-    name: cat.name,
-    icon: cat.icon,
-    color: cat.color,
-    type: cat.type,
-    isDefault: cat.isDefault,
-  };
-}
-
-export const GET = withAuth(async (_req, user) => {
-  const categories = await categoryService.list(user.userId);
-  return apiSuccess(categories.map(normalizeCategory));
+export const GET = withAuth(async (req, user) => {
+  try {
+    const { searchParams } = new URL(req.url);
+    const categories = await categoryService.list(user.userId, searchParams.get('search') ?? undefined);
+    return apiSuccess(categories.map(normalizeCategoryRecord));
+  } catch (err) {
+    console.error('List categories error:', err);
+    return apiError('Could not fetch categories.', 500);
+  }
 });
 
 export const POST = withAuth(async (req, user) => {
-  const body = await req.json();
-  const parsed = categorySchema.safeParse(body);
-  if (!parsed.success) return apiError('Please check the form for errors.', 422, parsed.error.flatten().fieldErrors);
+  try {
+    const body = await req.json();
+    const parsed = categorySchema.safeParse(body);
+    if (!parsed.success) return apiError('Please check the form for errors.', 422, parsed.error.flatten().fieldErrors);
 
-  const created = await categoryService.create(user.userId, parsed.data);
-  return apiSuccess(normalizeCategory(created as Parameters<typeof normalizeCategory>[0]));
+    const created = await categoryService.create(user.userId, parsed.data);
+    return apiSuccess(normalizeCategoryRecord(created), 201);
+  } catch (err) {
+    if (err instanceof CategoryError) return apiError(err.message, err.status);
+    console.error('Create category error:', err);
+    return apiError('Could not create category.', 500);
+  }
 });

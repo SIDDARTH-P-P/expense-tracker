@@ -30,6 +30,8 @@ export const PATCH = withAuth(async (req, user, ctx: { params: Promise<{ id: str
   }
 });
 
+export const PUT = PATCH;
+
 export const DELETE = withAuth(async (_req, user, ctx: { params: Promise<{ id: string }> }) => {
   try {
     const { id } = await ctx.params;

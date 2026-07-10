@@ -1,13 +1,20 @@
-/** Seeded on signup so every new user starts with a sensible category set. */
+/** Seeded once per user so every account starts with a complete category set. */
 export const DEFAULT_CATEGORIES = [
   { name: 'Food', icon: 'FiCoffee', color: '#F5A623', type: 'expense' },
-  { name: 'Shopping', icon: 'FiShoppingBag', color: '#FB7185', type: 'expense' },
-  { name: 'Bills', icon: 'FiFileText', color: '#818CF8', type: 'expense' },
-  { name: 'Entertainment', icon: 'FiFilm', color: '#F472B6', type: 'expense' },
   { name: 'Travel', icon: 'FiMapPin', color: '#38BDF8', type: 'expense' },
-  { name: 'Medical', icon: 'FiHeart', color: '#FB923C', type: 'expense' },
-  { name: 'Education', icon: 'FiBook', color: '#A78BFA', type: 'expense' },
-  { name: 'Others', icon: 'FiGrid', color: '#94A3B8', type: 'both' },
+  { name: 'Medicine', icon: 'FiHeart', color: '#FB7185', type: 'expense' },
+  { name: 'Bills', icon: 'FiFileText', color: '#818CF8', type: 'expense' },
+  { name: 'Shopping', icon: 'FiShoppingBag', color: '#F472B6', type: 'expense' },
+  { name: 'Fuel', icon: 'FiTruck', color: '#FB923C', type: 'expense' },
+  { name: 'Entertainment', icon: 'FiFilm', color: '#EC4899', type: 'expense' },
+  { name: 'Rent', icon: 'FiHome', color: '#A78BFA', type: 'expense' },
+  { name: 'Education', icon: 'FiBook', color: '#60A5FA', type: 'expense' },
+  { name: 'Health', icon: 'FiActivity', color: '#34D399', type: 'expense' },
+  { name: 'Groceries', icon: 'FiShoppingCart', color: '#22C55E', type: 'expense' },
   { name: 'Salary', icon: 'FiBriefcase', color: '#2DD4BF', type: 'income' },
-  { name: 'Investment', icon: 'FiTrendingUp', color: '#34D399', type: 'income' },
+  { name: 'Business', icon: 'FiTrendingUp', color: '#14B8A6', type: 'income' },
+  { name: 'Freelance', icon: 'FiEdit3', color: '#38BDF8', type: 'income' },
+  { name: 'Gift', icon: 'FiGift', color: '#F472B6', type: 'income' },
+  { name: 'Investment', icon: 'FiBarChart2', color: '#34D399', type: 'income' },
+  { name: 'Bonus', icon: 'FiAward', color: '#FBBF24', type: 'income' },
 ] as const;

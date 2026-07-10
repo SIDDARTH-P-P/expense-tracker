@@ -1,14 +1,39 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, Suspense, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { FiMail, FiLock, FiZap } from 'react-icons/fi';
+import { FiMail, FiLock, FiZap, FiAlertCircle } from 'react-icons/fi';
+import { useSearchParams } from 'next/navigation';
 import { loginSchema, type LoginInput } from '@/lib/validations/auth.schema';
 import { Input } from '@/components/common/Input';
 import { Button } from '@/components/common/Button';
 import { useLogin } from '@/hooks/useAuth';
+import toast from 'react-hot-toast';
+
+function SessionExpiredAlert() {
+  const searchParams = useSearchParams();
+  const reason = searchParams.get('reason');
+
+  useEffect(() => {
+    if (reason === 'session_expired') {
+      toast.error('Session expired. Please log in again.');
+    }
+  }, [reason]);
+
+  if (reason !== 'session_expired') return null;
+
+  return (
+    <div className="mb-6 flex items-start gap-3 rounded-2xl border border-warning/30 bg-warning/10 p-4 text-warning">
+      <FiAlertCircle size={18} className="mt-0.5 shrink-0" />
+      <div>
+        <h4 className="text-sm font-bold">Session Expired</h4>
+        <p className="mt-0.5 text-xs opacity-90">Your session has expired. Please log in again to continue.</p>
+      </div>
+    </div>
+  );
+}
 
 export default function LoginPage() {
   const login = useLogin();
@@ -27,6 +52,10 @@ export default function LoginPage() {
         </div>
         <span className="font-display text-xl font-semibold">Ledgerly</span>
       </div>
+
+      <Suspense fallback={null}>
+        <SessionExpiredAlert />
+      </Suspense>
 
       <h1 className="font-display text-2xl font-bold">Welcome back</h1>
       <p className="mt-1 mb-8 text-sm text-muted">Log in to keep track of your money.</p>

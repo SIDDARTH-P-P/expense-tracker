@@ -104,10 +104,10 @@ export function useCreateTransaction() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (input: TransactionFormValues) => apiClient.post<Transaction>('/transactions', input),
-    onSuccess: () => {
+    onSuccess: (created) => {
       qc.invalidateQueries({ queryKey: ['transactions'] });
       qc.invalidateQueries({ queryKey: ['dashboard', 'summary'] });
-      toast.success('Transaction added.');
+      toast.success(`Transaction ${created.recordId} added.`);
     },
     onError: (err: ApiClientError) => toast.error(err.message),
   });
@@ -118,10 +118,10 @@ export function useUpdateTransaction() {
   return useMutation({
     mutationFn: ({ id, input }: { id: string; input: Partial<TransactionFormValues> }) =>
       apiClient.patch<Transaction>(`/transactions/${id}`, input),
-    onSuccess: () => {
+    onSuccess: (updated) => {
       qc.invalidateQueries({ queryKey: ['transactions'] });
       qc.invalidateQueries({ queryKey: ['dashboard', 'summary'] });
-      toast.success('Transaction updated.');
+      toast.success(`Transaction ${updated.recordId} updated.`);
     },
     onError: (err: ApiClientError) => toast.error(err.message),
   });
@@ -150,7 +150,7 @@ export function useDuplicateTransaction() {
       );
       qc.invalidateQueries({ queryKey: ['transactions'] });
       qc.invalidateQueries({ queryKey: ['dashboard', 'summary'] });
-      toast.success('Transaction duplicated.');
+      toast.success(`Transaction ${duplicated.recordId} duplicated.`);
     },
     onError: (err: ApiClientError) => toast.error(err.message),
   });

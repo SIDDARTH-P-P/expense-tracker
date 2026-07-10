@@ -2,6 +2,18 @@ import { withAuth } from '@/middlewares/with-auth';
 import { categoryService, CategoryError } from '@/services/category.service';
 import { categorySchema } from '@/lib/validations/category.schema';
 import { apiSuccess, apiError } from '@/lib/utils/api-response';
+import { normalizeCategoryRecord } from '@/lib/utils/normalize-management';
+
+export const GET = withAuth(async (_req, user, ctx: { params: Promise<{ id: string }> }) => {
+  try {
+    const { id } = await ctx.params;
+    const category = await categoryService.get(user.userId, id);
+    return apiSuccess(normalizeCategoryRecord(category));
+  } catch (err) {
+    if (err instanceof CategoryError) return apiError(err.message, err.status);
+    return apiError('Could not fetch category.', 500);
+  }
+});
 
 export const PATCH = withAuth(async (req, user, ctx: { params: Promise<{ id: string }> }) => {
   try {
@@ -11,12 +23,14 @@ export const PATCH = withAuth(async (req, user, ctx: { params: Promise<{ id: str
     if (!parsed.success) return apiError('Please check the form for errors.', 422, parsed.error.flatten().fieldErrors);
 
     const updated = await categoryService.update(user.userId, id, parsed.data);
-    return apiSuccess(updated);
+    return apiSuccess(normalizeCategoryRecord(updated));
   } catch (err) {
     if (err instanceof CategoryError) return apiError(err.message, err.status);
     return apiError('Could not update category.', 500);
   }
 });
+
+export const PUT = PATCH;
 
 export const DELETE = withAuth(async (_req, user, ctx: { params: Promise<{ id: string }> }) => {
   try {

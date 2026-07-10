@@ -15,6 +15,7 @@ import { useUIStore } from '@/store/ui.store';
 export function BottomNav() {
   const pathname = usePathname();
   const openAddSheet = useUIStore((s) => s.openAddSheet);
+  const openManagementAddSheet = useUIStore((s) => s.openManagementAddSheet);
 
   const navItems = NAV_ITEMS.filter((item) => item.href !== '/profile');
 
@@ -40,7 +41,7 @@ export function BottomNav() {
       {/* Center add button */}
       <div className="relative flex flex-col items-center pb-1 pt-2">
         <motion.button
-          onClick={() => openAddSheet('expense')}
+          onClick={() => (pathname.startsWith('/categories') ? openManagementAddSheet() : openAddSheet('expense'))}
           aria-label="Add transaction"
           whileTap={{ scale: 0.9 }}
           whileHover={{ scale: 1.08 }}
