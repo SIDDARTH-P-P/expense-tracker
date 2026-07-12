@@ -7,7 +7,11 @@ import * as Icons from 'react-icons/fi';
 import type { IconType } from 'react-icons';
 import { formatCurrency, formatDate, formatTime } from '@/lib/utils/format';
 import { useDuplicateTransaction } from '@/hooks/useTransactions';
-import type { Transaction, Category } from '@/types';
+import { useCurrentUser } from '@/hooks/useAuth';
+import { useSplit, useMarkSplitPaid } from '@/hooks/useManagement';
+import { BottomSheet } from '@/components/common/BottomSheet';
+import { cn } from '@/lib/utils/cn';
+import type { Transaction, Category, Split, SplitUser } from '@/types';
 
 const PAYMENT_ICONS: Record<string, string> = {
   cash: '💵',
@@ -37,12 +41,24 @@ function getTransactionId(transaction: Transaction) {
   return mongoId?.toString() ?? '';
 }
 
+function splitUserName(value: SplitUser | string) {
+  return typeof value === 'string' ? 'Unknown' : value.name;
+}
+
+function getSplitUserId(value: SplitUser | string) {
+  return typeof value === 'string' ? value : value.id;
+}
+
 function stopCardDrag(event: PointerEvent<HTMLButtonElement>) {
   event.stopPropagation();
 }
 
 function TransactionCardInner({ transaction, currency, compact, onEdit, onDelete }: TransactionCardProps) {
   const [showActions, setShowActions] = useState(false);
+  const [showSplitDetails, setShowSplitDetails] = useState(false);
+  const { data: user } = useCurrentUser();
+  const { data: split } = useSplit(showSplitDetails ? transaction.splitId : null);
+  const markSplitPaid = useMarkSplitPaid();
 
   const x = useMotionValue(0);
   const deleteOpacity = useTransform(x, [-SWIPE_DELETE_WIDTH, -24], [1, 0]);
@@ -100,14 +116,23 @@ function TransactionCardInner({ transaction, currency, compact, onEdit, onDelete
           </motion.button>
         )}
 
-        {/* Main card */}
         <motion.div
           drag={canDelete ? 'x' : false}
           dragConstraints={{ left: -SWIPE_DELETE_WIDTH, right: 0 }}
           dragElastic={0.1}
           style={{ x, opacity: cardOpacity }}
           onDragEnd={handleDragEnd}
-          className="relative flex touch-pan-y select-none items-center gap-3 rounded-2xl border border-border bg-surface p-3 transition-colors hover:border-border/80 hover:shadow-soft sm:p-3.5 cursor-grab active:cursor-grabbing"
+          onClick={() => {
+            if (transaction.splitId) {
+              setShowSplitDetails(true);
+            } else if (onEdit) {
+              onEdit(transaction);
+            }
+          }}
+          className={cn(
+            "relative flex touch-pan-y select-none items-center gap-3 rounded-2xl border border-border bg-surface p-3 transition-colors hover:border-border/80 hover:shadow-soft sm:p-3.5 cursor-pointer",
+            !transaction.splitId && "active:scale-[0.99]"
+          )}
         >
           {/* Category icon */}
           <div
@@ -119,8 +144,13 @@ function TransactionCardInner({ transaction, currency, compact, onEdit, onDelete
 
           {/* Content */}
           <div className="min-w-0 flex-1">
-            <div className="flex min-w-0 items-baseline gap-1.5">
+            <div className="flex min-w-0 items-center flex-wrap gap-1.5">
               <p className="truncate text-sm font-semibold">{transaction.title}</p>
+              {transaction.splitId && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-primary">
+                  Split {transaction.splitMembersCount ? `· ${transaction.splitMembersCount} Members` : ''}
+                </span>
+              )}
               {!compact && transaction.note && (
                 <FiMessageSquare size={10} className="shrink-0 text-muted" />
               )}
@@ -244,6 +274,128 @@ function TransactionCardInner({ transaction, currency, compact, onEdit, onDelete
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* View detail sheet */}
+        <BottomSheet isOpen={showSplitDetails} onClose={() => setShowSplitDetails(false)} title="Split details">
+          {split ? (
+            <div className="flex flex-col gap-4">
+              <div className="rounded-2xl border border-border bg-surface-2 p-4">
+                <p className="text-[10px] font-bold uppercase tracking-widest text-muted">Record ID</p>
+                <p className="font-mono text-sm font-semibold text-primary">{split.recordId}</p>
+              </div>
+              <div>
+                <p className="text-sm text-muted">Title</p>
+                <p className="text-lg font-semibold">{split.title}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-2xl border border-border bg-surface p-3">
+                  <p className="text-xs text-muted">Amount</p>
+                  <p className="font-mono font-bold text-primary">{formatCurrency(split.amount, currency)}</p>
+                </div>
+                <div className="rounded-2xl border border-border bg-surface p-3">
+                  <p className="text-xs text-muted">Paid by</p>
+                  <p className="truncate font-semibold">{splitUserName(split.paidBy)}</p>
+                </div>
+              </div>
+
+              {(() => {
+                const payerId = getSplitUserId(split.paidBy);
+                const nonPayers = split.members.filter((m) => getSplitUserId(m.userId) !== payerId);
+                const paidNonPayers = nonPayers.filter((m) => m.paid);
+                const totalNonPayers = nonPayers.length;
+                const paidCount = paidNonPayers.length;
+                const progressPercent = totalNonPayers > 0 ? (paidCount / totalNonPayers) * 100 : 100;
+
+                return (
+                  <>
+                    {/* Progress section */}
+                    <div className="rounded-2xl border border-border bg-surface p-4">
+                      <div className="mb-2 flex items-center justify-between text-xs font-semibold">
+                        <span className="text-muted">Settlement Progress</span>
+                        <span className="text-primary font-mono">{paidCount} of {totalNonPayers} Paid</span>
+                      </div>
+                      <div className="h-2.5 w-full overflow-hidden rounded-full bg-surface-2">
+                        <div
+                          className="h-full bg-primary transition-all duration-500 ease-out"
+                          style={{ width: `${progressPercent}%` }}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      <p className="text-sm font-medium text-muted">Members Share</p>
+                      {split.members.map((member) => {
+                        const memberId = getSplitUserId(member.userId);
+                        const isPayer = memberId === payerId;
+                        const memberEmail = typeof member.userId === 'string' ? '' : member.userId.email;
+                        const isMe = user?.email?.toLowerCase() === memberEmail.toLowerCase();
+                        
+                        // Can mark paid if it's the logged-in user themselves, they are not the payer, and they haven't paid yet
+                        const canMarkPaid = isMe && !isPayer && !member.paid;
+
+                        return (
+                          <div
+                            key={memberId}
+                            className="flex items-center justify-between rounded-2xl border border-border bg-surface p-3"
+                          >
+                            <div className="min-w-0 flex-1">
+                              <span className="flex items-center gap-2">
+                                <p className="truncate text-sm font-semibold">{splitUserName(member.userId)}</p>
+                                {isPayer && (
+                                  <span className="rounded-full bg-primary/10 px-1 py-0.2 text-[8px] font-bold uppercase text-primary">
+                                    Payer
+                                  </span>
+                                )}
+                              </span>
+                              <div className="mt-0.5 flex items-center gap-2">
+                                <span
+                                  className={cn(
+                                    'rounded-full px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide',
+                                    member.paid ? 'bg-income/10 text-income' : 'bg-surface-2 text-muted border border-border'
+                                  )}
+                                >
+                                  {member.paid ? 'Paid' : 'Unpaid'}
+                                </span>
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-3">
+                              <p className="font-mono text-sm font-semibold">{formatCurrency(member.shareAmount, currency)}</p>
+                              {canMarkPaid && (
+                                <button
+                                  type="button"
+                                  disabled={markSplitPaid.isPending}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    markSplitPaid.mutate(
+                                      { splitId: split.id, memberId },
+                                      {
+                                        onSuccess: () => {
+                                          // Auto-updates from React Query cache validation
+                                        },
+                                      }
+                                    );
+                                  }}
+                                  className="rounded-xl bg-income px-3 py-1.5 text-xs font-bold text-income-foreground hover:opacity-90 transition disabled:opacity-50"
+                                >
+                                  {markSplitPaid.isPending ? 'Saving...' : 'Mark Paid'}
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </>
+                );
+              })()}
+            </div>
+          ) : (
+            <div className="flex items-center justify-center py-8">
+              <span className="text-sm text-muted">Loading split details...</span>
+            </div>
+          )}
+        </BottomSheet>
       </div>
   );
 }

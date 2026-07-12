@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { FiDownload, FiList, FiBook } from 'react-icons/fi';
 import { useInfiniteTransactions } from '@/hooks/useTransactions';
 import { useCurrentUser } from '@/hooks/useAuth';
@@ -10,6 +10,7 @@ import { TransactionList } from '@/components/transactions/TransactionList';
 import { CashBookView } from '@/components/transactions/CashBookView';
 import { Button } from '@/components/common/Button';
 import { useTransactions } from '@/hooks/useTransactions';
+import { useUIStore } from '@/store/ui.store';
 import type { TransactionFilters } from '@/hooks/useTransactions';
 import { cn } from '@/lib/utils/cn';
 
@@ -21,7 +22,32 @@ export default function TransactionsPage() {
   const [filters, setFilters] = useState<Omit<TransactionFilters, 'page'>>({});
   const debouncedSearch = useDebounce(filters.search, 350);
 
-  const activeFilters = { ...filters, search: debouncedSearch };
+  // Get date range filter state from Zustand
+  const dateFilterType = useUIStore((s) => s.dateFilterType);
+  const selectedMonth = useUIStore((s) => s.selectedMonth);
+  const selectedYear = useUIStore((s) => s.selectedYear);
+
+  // Compute from & to date strings based on filters
+  const dateParams = useMemo(() => {
+    if (dateFilterType === 'all') return { from: undefined, to: undefined };
+    if (dateFilterType === 'month') {
+      const from = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-01`;
+      const lastDay = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+      const to = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+      return { from, to };
+    }
+    // year
+    return {
+      from: `${selectedYear}-01-01`,
+      to: `${selectedYear}-12-31`,
+    };
+  }, [dateFilterType, selectedMonth, selectedYear]);
+
+  const activeFilters = { 
+    ...filters, 
+    ...dateParams,
+    search: debouncedSearch 
+  };
 
   // Infinite scroll for list view
   const {
@@ -112,6 +138,7 @@ export default function TransactionsPage() {
             </Button>
           </div>
         </div>
+
 
         {/* Filters */}
         <FilterBar

@@ -11,7 +11,7 @@ export const splitSchema = z.object({
   amount: z.coerce.number().positive('Amount must be greater than zero'),
   paidBy: z.string().min(1, 'Paid by is required'),
   splitMode: z.enum(['equal', 'custom']).default('equal'),
-  members: z.array(splitMemberSchema).min(1, 'Select at least one member'),
+  members: z.array(splitMemberSchema).min(2, 'Select at least 2 members'),
 });
 
 export type SplitFormValues = z.infer<typeof splitSchema>;

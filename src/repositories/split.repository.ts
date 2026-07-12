@@ -12,10 +12,37 @@ function identifierFilter(id: string, userId: string): FilterQuery<ISplit> {
 export const splitRepository = {
   async findAllForUser(userId: string, search?: string) {
     await connectDB();
-    const filter: FilterQuery<ISplit> = { userId };
+
+    // Find splits involving the user (created by them, paid by them, or where they are a member)
+    const user = await mongoose.model('User').findById(userId);
+    const userEmail = user?.email?.toLowerCase() || '';
+    const matchingSplitUsers = await mongoose.model('SplitUser').find({
+      email: userEmail
+    }).select('_id');
+    const matchingSplitUserIds = matchingSplitUsers.map((su: any) => su._id);
+
+    const baseFilter: FilterQuery<ISplit> = {
+      $or: [
+        { userId: new mongoose.Types.ObjectId(userId) },
+        { paidBy: { $in: matchingSplitUserIds } },
+        { 'members.userId': { $in: matchingSplitUserIds } }
+      ]
+    };
+
+    let filter = { ...baseFilter };
+
     if (search?.trim()) {
       const q = search.trim();
-      const splitUsers = await SplitUser.find({
+      
+      // 1. Search transactions by record ID to find linked split IDs
+      const txs = await mongoose.model('Transaction').find({
+        recordId: { $regex: q, $options: 'i' },
+        splitId: { $ne: null }
+      }).select('splitId');
+      const transactionSplitIds = txs.map((tx: any) => tx.splitId);
+
+      // 2. Search SplitUsers by name, email, recordId
+      const splitUsers = await mongoose.model('SplitUser').find({
         userId,
         $or: [
           { name: { $regex: q, $options: 'i' } },
@@ -24,16 +51,33 @@ export const splitRepository = {
         ],
       }).select('_id');
 
-      filter.$or = [
-        { title: { $regex: q, $options: 'i' } },
-        { recordId: { $regex: q, $options: 'i' } },
-        ...(splitUsers.length
-          ? [
-              { paidBy: { $in: splitUsers.map((splitUser) => splitUser._id) } },
-              { 'members.userId': { $in: splitUsers.map((splitUser) => splitUser._id) } },
-            ]
-          : []),
-      ];
+      // 3. Search Creator (User)
+      const creatorMatch = await mongoose.model('User').findOne({
+        _id: userId,
+        $or: [
+          { name: { $regex: q, $options: 'i' } },
+          { email: { $regex: q, $options: 'i' } }
+        ]
+      });
+
+      const searchFilter = {
+        $or: [
+          { title: { $regex: q, $options: 'i' } },
+          { recordId: { $regex: q, $options: 'i' } },
+          { _id: { $in: transactionSplitIds } },
+          ...(creatorMatch ? [{ userId: creatorMatch._id }] : []),
+          ...(splitUsers.length
+            ? [
+                { paidBy: { $in: splitUsers.map((su: any) => su._id) } },
+                { 'members.userId': { $in: splitUsers.map((su: any) => su._id) } },
+              ]
+            : []),
+        ]
+      };
+
+      filter = {
+        $and: [baseFilter, searchFilter]
+      } as any;
     }
 
     return Split.find(filter)
@@ -44,7 +88,28 @@ export const splitRepository = {
 
   async findById(id: string, userId: string) {
     await connectDB();
-    return Split.findOne(identifierFilter(id, userId)).populate('paidBy').populate('members.userId');
+    const user = await mongoose.model('User').findById(userId);
+    const userEmail = user?.email?.toLowerCase() || '';
+    const matchingSplitUsers = await mongoose.model('SplitUser').find({
+      email: userEmail
+    }).select('_id');
+    const matchingSplitUserIds = matchingSplitUsers.map((su: any) => su._id);
+
+    const candidates: FilterQuery<ISplit>[] = [{ recordId: id }];
+    if (mongoose.isValidObjectId(id)) candidates.push({ _id: id });
+
+    return Split.findOne({
+      $and: [
+        {
+          $or: [
+            { userId: new mongoose.Types.ObjectId(userId) },
+            { paidBy: { $in: matchingSplitUserIds } },
+            { 'members.userId': { $in: matchingSplitUserIds } }
+          ]
+        },
+        { $or: candidates }
+      ]
+    }).populate('paidBy').populate('members.userId');
   },
 
   async create(data: Partial<ISplit>) {

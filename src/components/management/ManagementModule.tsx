@@ -7,8 +7,11 @@ import { CategoryList } from '@/components/management/CategoryList';
 import { ManagementTabs } from '@/components/management/ManagementTabs';
 import { SplitList } from '@/components/management/SplitList';
 import { SplitUserList } from '@/components/management/SplitUserList';
+import { SplitHeaderSummary } from '@/components/management/SplitHeaderSummary';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useUIStore } from '@/store/ui.store';
+
+import { cn } from '@/lib/utils/cn';
 
 export function ManagementModule() {
   const activeTab = useUIStore((s) => s.managementActiveTab);
@@ -29,25 +32,30 @@ export function ManagementModule() {
           <ManagementTabs />
         </div>
 
-        {/* Row 3: Search bar */}
-        <div className="relative">
-          <FiSearch size={15} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
-          <input
-            type="search"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search record ID, name, email, category, or split..."
-            className="w-full rounded-2xl border border-border bg-surface py-2.5 pl-10 pr-10 text-sm shadow-soft placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-          />
-          {search && (
-            <button
-              type="button"
-              onClick={() => setSearch('')}
-              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted hover:text-foreground"
-              aria-label="Clear search"
-            >
-              <FiX size={15} />
-            </button>
+        {/* Row 3: Search bar & Split Filter Switch */}
+        <div className="flex flex-col gap-1.5">
+          <div className="relative flex-1">
+            <FiSearch size={15} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
+            <input
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search record ID, name, email, category, or split..."
+              className="w-full rounded-2xl border border-border bg-surface py-2.5 pl-10 pr-10 text-sm shadow-soft placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            />
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted hover:text-foreground"
+                aria-label="Clear search"
+              >
+                <FiX size={15} />
+              </button>
+            )}
+          </div>
+          {activeTab === 'splits' && (
+            <SplitHeaderSummary search={debouncedSearch} />
           )}
         </div>
       </div>

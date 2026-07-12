@@ -82,6 +82,16 @@ export function useSplits(search?: string) {
   });
 }
 
+export function useSplit(id?: string | null) {
+  const userId = useAuthStore((s) => s.user?.id);
+  return useQuery({
+    queryKey: ['split', userId ?? 'guest', id],
+    queryFn: () => apiClient.get<Split>(`/splits/${id}`),
+    enabled: !!userId && !!id,
+    staleTime: 60 * 1000,
+  });
+}
+
 export function useCreateSplit() {
   const userId = useAuthStore((s) => s.user?.id);
   const qc = useQueryClient();
@@ -117,6 +127,20 @@ export function useDeleteSplit() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: splitsQueryKey(userId) });
       toast.success('Split deleted.');
+    },
+    onError: (err: ApiClientError) => toast.error(err.message),
+  });
+}
+
+export function useMarkSplitPaid() {
+  const userId = useAuthStore((s) => s.user?.id);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ splitId, memberId }: { splitId: string; memberId: string }) =>
+      apiClient.post<Split>(`/splits/${splitId}/pay`, { memberId }),
+    onSuccess: (updated) => {
+      qc.invalidateQueries({ queryKey: splitsQueryKey(userId) });
+      toast.success(`Member marked as paid.`);
     },
     onError: (err: ApiClientError) => toast.error(err.message),
   });

@@ -43,6 +43,13 @@ export interface Transaction {
   paymentMethod: PaymentMethod;
   date: string;
   note?: string;
+  splitId?: string | null;
+  splitRecordId?: string | null;
+  splitMembersCount?: number | null;
+  createdFrom?: string | null;
+  createdBy?: string | null;
+  transactionType?: 'Split Expense' | 'Split Income' | 'Split Settlement' | null;
+  status: 'Paid' | 'Pending';
   createdAt: string;
   updatedAt: string;
 }
@@ -74,6 +81,8 @@ export interface Split {
   paidBy: SplitUser | string;
   splitMode: SplitMode;
   members: SplitMember[];
+  status: 'Pending' | 'Partially Paid' | 'Completed';
+  deleted: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -103,4 +112,17 @@ export interface PaginatedResult<T> {
   page: number;
   pageSize: number;
   totalPages: number;
+}
+
+export interface Notification {
+  id: string;
+  recordId: string;
+  userId: string;
+  title: string;
+  message: string;
+  type: 'Split Created' | 'Split Paid' | 'Split Reminder' | 'Expense' | 'Income' | 'System';
+  relatedId?: string | null;
+  read: boolean;
+  createdAt: string;
+  updatedAt: string;
 }

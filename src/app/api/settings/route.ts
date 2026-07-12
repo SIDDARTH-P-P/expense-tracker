@@ -1,6 +1,7 @@
 import { withAuth } from '@/middlewares/with-auth';
 import { settingsService } from '@/services/settings.service';
 import { userRepository } from '@/repositories/user.repository';
+import { notificationService } from '@/services/notification.service';
 import { apiSuccess } from '@/lib/utils/api-response';
 
 export const GET = withAuth(async (_req, user) => {
@@ -20,6 +21,8 @@ export const PATCH = withAuth(async (req, user) => {
 
   if (Object.keys(userUpdates).length > 0) {
     await userRepository.updateById(user.userId, userUpdates);
+    // Broadcast setting changes via SSE
+    notificationService.broadcastSettingsUpdate(user.userId, userUpdates);
   }
 
   return apiSuccess(updated);

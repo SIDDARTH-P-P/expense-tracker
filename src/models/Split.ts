@@ -16,6 +16,8 @@ export interface ISplit extends Document {
   paidBy: Types.ObjectId;
   splitMode: SplitMode;
   members: ISplitMember[];
+  status: 'Pending' | 'Partially Paid' | 'Completed';
+  deleted: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -38,6 +40,8 @@ const SplitSchema = new Schema<ISplit>(
     paidBy: { type: Schema.Types.ObjectId, ref: 'SplitUser', required: true },
     splitMode: { type: String, enum: ['equal', 'custom'], default: 'equal' },
     members: { type: [SplitMemberSchema], default: [] },
+    status: { type: String, enum: ['Pending', 'Partially Paid', 'Completed'], default: 'Pending' },
+    deleted: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

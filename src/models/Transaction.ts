@@ -9,6 +9,13 @@ export interface ITransaction extends Document {
   category: Types.ObjectId;
   subCategory?: string | null;
   paymentMethod: 'cash' | 'card' | 'upi' | 'bank_transfer' | 'other';
+  splitId?: Types.ObjectId | null;
+  splitRecordId?: string | null;
+  splitMembersCount?: number | null;
+  createdFrom?: string | null;
+  createdBy?: Types.ObjectId | null;
+  transactionType?: 'Split Expense' | 'Split Income' | 'Split Settlement' | null;
+  status: 'Paid' | 'Pending';
   date: Date;
   note?: string;
   createdAt: Date;
@@ -31,6 +38,17 @@ const TransactionSchema = new Schema<ITransaction>(
     },
     date: { type: Date, required: true, default: Date.now, index: true },
     note: { type: String, trim: true, maxlength: 500, default: '' },
+    splitId: { type: Schema.Types.ObjectId, ref: 'Split', default: null, index: true },
+    splitRecordId: { type: String, default: null, index: true },
+    splitMembersCount: { type: Number, default: null },
+    createdFrom: { type: String, default: null },
+    createdBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
+    transactionType: {
+      type: String,
+      enum: ['Split Expense', 'Split Income', 'Split Settlement', null],
+      default: null,
+    },
+    status: { type: String, enum: ['Paid', 'Pending'], default: 'Paid' },
   },
   { timestamps: true }
 );

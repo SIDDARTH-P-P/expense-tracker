@@ -2,6 +2,7 @@
 
 import { FiSearch, FiX } from 'react-icons/fi';
 import { useCategories } from '@/hooks/useCategories';
+import { DateFilterDropdown } from '@/components/common/DateFilterDropdown';
 import type { TransactionFilters } from '@/hooks/useTransactions';
 import { cn } from '@/lib/utils/cn';
 
@@ -51,6 +52,12 @@ export function FilterBar({ filters, onChange }: FilterBarProps) {
 
       {/* Filter chips — horizontal scroll on mobile */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+        {/* Date Filter Dropdown */}
+        <DateFilterDropdown />
+
+        {/* Divider */}
+        <div className="h-7 w-px bg-border shrink-0" />
+
         {/* Type filter */}
         <div className="flex shrink-0 rounded-2xl border border-border bg-surface p-1 gap-0.5 shadow-soft">
           {TYPE_FILTERS.map((f) => (

@@ -83,6 +83,13 @@ export function normalizeTransaction(value: unknown): Transaction {
     paymentMethod: normalizePaymentMethod(transaction.paymentMethod),
     date: stringifyDate(transaction.date),
     note: typeof transaction.note === 'string' ? transaction.note : undefined,
+    splitId: transaction.splitId ? stringifyId(transaction.splitId) : null,
+    splitRecordId: typeof transaction.splitRecordId === 'string' ? transaction.splitRecordId : null,
+    splitMembersCount: typeof transaction.splitMembersCount === 'number' ? transaction.splitMembersCount : null,
+    createdFrom: typeof transaction.createdFrom === 'string' ? transaction.createdFrom : null,
+    createdBy: transaction.createdBy ? stringifyId(transaction.createdBy) : null,
+    transactionType: transaction.transactionType === 'Split Expense' || transaction.transactionType === 'Split Income' || transaction.transactionType === 'Split Settlement' ? transaction.transactionType : null,
+    status: transaction.status === 'Pending' ? 'Pending' : 'Paid',
     createdAt: stringifyDate(transaction.createdAt),
     updatedAt: stringifyDate(transaction.updatedAt),
   };

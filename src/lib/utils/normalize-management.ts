@@ -97,6 +97,8 @@ export function normalizeSplit(value: unknown): Split {
     paidBy,
     splitMode: split.splitMode === 'custom' ? 'custom' : 'equal',
     members,
+    status: (split.status || 'Pending') as 'Pending' | 'Partially Paid' | 'Completed',
+    deleted: Boolean(split.deleted),
     createdAt: stringifyDate(split.createdAt),
     updatedAt: stringifyDate(split.updatedAt),
   };

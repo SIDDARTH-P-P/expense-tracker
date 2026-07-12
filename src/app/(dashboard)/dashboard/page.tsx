@@ -1,5 +1,6 @@
 'use client';
 
+import { useMemo } from 'react';
 import { FiTrendingUp, FiTrendingDown, FiPieChart, FiCalendar } from 'react-icons/fi';
 import { useDashboardSummary } from '@/hooks/useDashboard';
 import { useCurrentUser } from '@/hooks/useAuth';
@@ -11,18 +12,60 @@ import { MonthlyTrendChart } from '@/components/charts/MonthlyTrendChart';
 import { IncomeExpenseBarChart } from '@/components/charts/IncomeExpenseBarChart';
 import { CardSkeleton } from '@/components/common/Skeleton';
 import { ErrorState } from '@/components/common/ErrorState';
+import { DateFilterDropdown } from '@/components/common/DateFilterDropdown';
+import { useUIStore } from '@/store/ui.store';
 import { formatCurrency } from '@/lib/utils/format';
 
 export default function DashboardPage() {
   const { data: user } = useCurrentUser();
-  const { data: summary, isLoading, isError, refetch } = useDashboardSummary();
+
+  // Get date range filter state from Zustand
+  const dateFilterType = useUIStore((s) => s.dateFilterType);
+  const selectedMonth = useUIStore((s) => s.selectedMonth);
+  const selectedYear = useUIStore((s) => s.selectedYear);
+
+  // Compute from & to date strings based on filters
+  const dateParams = useMemo(() => {
+    if (dateFilterType === 'all') return { from: undefined, to: undefined };
+    if (dateFilterType === 'month') {
+      const from = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-01`;
+      const lastDay = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+      const to = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+      return { from, to };
+    }
+    // year
+    return {
+      from: `${selectedYear}-01-01`,
+      to: `${selectedYear}-12-31`,
+    };
+  }, [dateFilterType, selectedMonth, selectedYear]);
+
+  const { data: summary, isLoading, isError, refetch } = useDashboardSummary(dateParams.from, dateParams.to);
   const currency = user?.currency ?? 'USD';
+
+  const currentMonth = useMemo(() => {
+    if (dateFilterType === 'month') {
+      const d = new Date(selectedYear, selectedMonth, 1);
+      return d.toLocaleString('en-US', { month: 'long', year: 'numeric' });
+    }
+    if (dateFilterType === 'year') {
+      return `Year ${selectedYear}`;
+    }
+    return 'All-Time';
+  }, [dateFilterType, selectedMonth, selectedYear]);
 
   if (isError) return <ErrorState onRetry={() => refetch()} />;
 
   if (isLoading || !summary) {
     return (
       <div className="mx-auto max-w-3xl flex flex-col gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-surface/40 p-4 border border-border/60 rounded-2xl">
+          <div>
+            <h1 className="font-display text-xl font-bold">Dashboard</h1>
+            <p className="text-xs text-muted">Overview of your personal finances</p>
+          </div>
+          <DateFilterDropdown />
+        </div>
         <CardSkeleton className="h-52" />
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <CardSkeleton className="h-28" />
@@ -37,10 +80,17 @@ export default function DashboardPage() {
     );
   }
 
-  const currentMonth = new Date().toLocaleString('en-US', { month: 'long', year: 'numeric' });
-
   return (
     <div className="mx-auto max-w-3xl flex flex-col gap-5">
+      {/* Top Header Row */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-surface/40 p-4 border border-border/60 rounded-2xl shadow-soft">
+        <div>
+          <h1 className="font-display text-xl font-bold">Dashboard</h1>
+          <p className="text-xs text-muted">Overview of your personal finances</p>
+        </div>
+        <DateFilterDropdown />
+      </div>
+
       {/* Hero balance card */}
       <BalanceCard
         totalBalance={summary.totalBalance}

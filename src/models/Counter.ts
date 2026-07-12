@@ -1,6 +1,6 @@
 import { Schema, model, models, type Document } from 'mongoose';
 
-export type RecordIdPrefix = 'EXP' | 'INC' | 'CAT' | 'USR' | 'SPL';
+export type RecordIdPrefix = 'EXP' | 'INC' | 'CAT' | 'USR' | 'SPL' | 'NTF';
 
 export interface ICounter extends Document<string> {
   prefix: RecordIdPrefix;
@@ -13,7 +13,7 @@ export interface ICounter extends Document<string> {
 const CounterSchema = new Schema<ICounter>(
   {
     _id: { type: String, required: true },
-    prefix: { type: String, enum: ['EXP', 'INC', 'CAT', 'USR', 'SPL'], required: true, index: true },
+    prefix: { type: String, enum: ['EXP', 'INC', 'CAT', 'USR', 'SPL', 'NTF'], required: true, index: true },
     year: { type: Number, required: true },
     month: { type: Number, required: true },
     sequence: { type: Number, required: true, default: 0 },

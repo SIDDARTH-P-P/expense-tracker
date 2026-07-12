@@ -9,6 +9,11 @@ function identifierFilter(id: string, userId: string): FilterQuery<ISplitUser> {
 }
 
 export const splitUserRepository = {
+  async findByEmail(userId: string, email: string) {
+    await connectDB();
+    return SplitUser.findOne({ userId, email: email.toLowerCase() });
+  },
+
   async findAllForUser(userId: string, search?: string) {
     await connectDB();
     const filter: FilterQuery<ISplitUser> = { userId };

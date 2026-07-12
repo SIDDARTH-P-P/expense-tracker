@@ -27,7 +27,7 @@ function pctChange(current: number, previous: number) {
 }
 
 export const dashboardService = {
-  async getSummary(userId: string) {
+  async getSummary(userId: string, fromStr?: string | null, toStr?: string | null) {
     const [missingTransactions, missingCategories] = await Promise.all([
       transactionRepository.findMissingRecordIds(userId),
       categoryRepository.findMissingRecordIds(userId),
@@ -60,19 +60,35 @@ export const dashboardService = {
       transactionRepository.findInRange(userId, startOfDay(now), endOfDay(now)),
     ]);
 
-    const totalIncome = sumByType(allTxs, 'income');
-    const totalExpense = sumByType(allTxs, 'expense');
-    const monthlyIncome = sumByType(thisMonthTxs, 'income');
-    const monthlyExpense = sumByType(thisMonthTxs, 'expense');
+    // Apply optional date filter in memory
+    let filteredTxs = allTxs;
+    if (fromStr || toStr) {
+      const fromDate = fromStr ? new Date(fromStr) : null;
+      const toDate = toStr ? new Date(toStr) : null;
+      if (toDate) toDate.setHours(23, 59, 59, 999);
+      filteredTxs = allTxs.filter((t) => {
+        const d = new Date(t.date);
+        if (fromDate && d < fromDate) return false;
+        if (toDate && d > toDate) return false;
+        return true;
+      });
+    }
+
+    const totalIncome = sumByType(filteredTxs, 'income');
+    const totalExpense = sumByType(filteredTxs, 'expense');
+    const monthlyIncome = fromStr || toStr ? totalIncome : sumByType(thisMonthTxs, 'income');
+    const monthlyExpense = fromStr || toStr ? totalExpense : sumByType(thisMonthTxs, 'expense');
     const lastMonthIncome = sumByType(lastMonthTxs, 'income');
     const lastMonthExpense = sumByType(lastMonthTxs, 'expense');
 
-    // Top spending categories this month
+    // Top spending categories this month or filtered range
+    const targetTxs = fromStr || toStr ? filteredTxs : thisMonthTxs;
     const categoryTotals = new Map<string, { category: ICategory; total: number }>();
-    thisMonthTxs
+    targetTxs
       .filter((t) => t.type === 'expense')
       .forEach((t) => {
         const cat = t.category as unknown as ICategory;
+        if (!cat) return;
         const key = String(cat._id);
         const existing = categoryTotals.get(key);
         if (existing) existing.total += t.amount;
@@ -100,7 +116,7 @@ export const dashboardService = {
     });
     const monthlyTrend = [...trendMap.entries()].map(([month, v]) => ({ month, ...v }));
 
-    const recentTransactions = [...allTxs]
+    const recentTransactions = [...filteredTxs]
       .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
       .slice(0, 8);
 

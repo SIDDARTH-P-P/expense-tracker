@@ -21,6 +21,7 @@ export function AnimatedNumber({ value, currency = 'USD', className }: AnimatedN
   }, [value, motionValue]);
 
   useEffect(() => {
+    setDisplay(formatCurrency(spring.get(), currency));
     const unsub = spring.on('change', (v) => setDisplay(formatCurrency(v, currency)));
     return unsub;
   }, [spring, currency]);
