@@ -451,6 +451,39 @@ export const splitService = {
     }
   },
 
+  async sendReminder(userId: string, splitId: string) {
+    const split = await Split.findOne({ _id: splitId }).populate('paidBy').populate('members.userId');
+    if (!split || split.deleted) throw new SplitError('Split not found.', 404);
+
+    const payerEmail = (split.paidBy as any).email?.toLowerCase() || '';
+    const payerName = typeof split.paidBy === 'string' ? 'Someone' : split.paidBy.name;
+
+    const userSU = await this.ensureCreatorSplitUser(userId);
+    if (!userSU || userSU.email.toLowerCase() !== payerEmail) {
+      throw new SplitError('Only the split creator can send reminders.', 403);
+    }
+
+    // Send notifications to all pending members
+    for (const m of split.members) {
+      if (m.userId && typeof m.userId !== 'string' && !m.paid) {
+        const memberEmail = (m.userId as any).email?.toLowerCase();
+        if (memberEmail && memberEmail !== payerEmail) {
+          const targetUser = await User.findOne({ email: memberEmail });
+          if (targetUser) {
+            await notificationService.create(targetUser._id.toString(), {
+              title: `Reminder: Split "${split.title}"`,
+              message: `Please settle your share of ₹${m.shareAmount} for "${split.title}" to ${payerName}`,
+              type: 'Split Reminder',
+              relatedId: split._id.toString(),
+            });
+          }
+        }
+      }
+    }
+
+    return split;
+  },
+
   async markPaid(userId: string, splitId: string, memberId: string) {
     const split = await Split.findOne({ _id: splitId }).populate('paidBy').populate('members.userId');
     if (!split || split.deleted) throw new SplitError('Split not found.', 404);

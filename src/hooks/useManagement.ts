@@ -145,3 +145,17 @@ export function useMarkSplitPaid() {
     onError: (err: ApiClientError) => toast.error(err.message),
   });
 }
+
+export function useSendSplitReminder() {
+  const userId = useAuthStore((s) => s.user?.id);
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (splitId: string) =>
+      apiClient.post<Split>(`/splits/${splitId}/remind`, {}),
+    onSuccess: (updated) => {
+      qc.invalidateQueries({ queryKey: splitsQueryKey(userId) });
+      toast.success('Split reminder notification sent to members!');
+    },
+    onError: (err: ApiClientError) => toast.error(err.message),
+  });
+}
