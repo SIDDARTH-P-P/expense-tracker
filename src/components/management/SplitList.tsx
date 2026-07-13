@@ -11,6 +11,7 @@ import {
   FiMoreVertical,
   FiArrowUpRight,
   FiArrowDownLeft,
+  FiArrowLeft,
 } from 'react-icons/fi';
 import { BottomSheet } from '@/components/common/BottomSheet';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -244,7 +245,7 @@ export function SplitList({ search }: SplitListProps) {
                     <button
                       type="button"
                       onClick={() => setViewing(split)}
-                      className="flex h-7 w-7 items-center justify-center rounded-lg text-muted hover:bg-surface-2 hover:text-foreground transition-colors"
+                      className="flex h-7 w-7 items-center justify-center rounded-lg text-muted transition-colors hover:bg-surface-2 hover:text-foreground"
                       aria-label="View"
                     >
                       <FiEye size={14} />
@@ -305,168 +306,79 @@ export function SplitList({ search }: SplitListProps) {
         </div>
       )}
 
-      {/* View detail sheet */}
-      <BottomSheet
-        isOpen={!!viewing}
-        onClose={() => setViewing(null)}
-        title="Split details"
-      >
-        {viewing && (
-          <div className="flex flex-col gap-4">
-            <div className="rounded-2xl border border-border bg-surface-2 p-4">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-muted">
-                Record ID
-              </p>
-              <p className="font-mono text-sm font-semibold text-primary">
-                {viewing.recordId}
-              </p>
-            </div>
-            <div>
-              <p className="text-sm text-muted">Title</p>
-              <p className="text-lg font-semibold">{viewing.title}</p>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div className="rounded-2xl border border-border bg-surface p-3">
-                <p className="text-xs text-muted">Amount</p>
-                <p className="font-mono font-bold text-primary">
-                  {formatCurrency(viewing.amount, currency)}
-                </p>
-              </div>
-              <div className="rounded-2xl border border-border bg-surface p-3">
-                <p className="text-xs text-muted">Paid by</p>
-                <p className="truncate font-semibold">
-                  {splitUserName(viewing.paidBy)}
-                </p>
-              </div>
-            </div>
 
-            {(() => {
-              const payerId = getSplitUserId(viewing.paidBy);
-              const nonPayers = viewing.members.filter(
-                (m) => getSplitUserId(m.userId) !== payerId
-              );
-              const paidNonPayers = nonPayers.filter((m) => m.paid);
-              const totalNonPayers = nonPayers.length;
-              const paidCount = paidNonPayers.length;
-              const progressPercent =
-                totalNonPayers > 0
-                  ? (paidCount / totalNonPayers) * 100
-                  : 100;
-
-              return (
-                <>
-                  {/* Progress section */}
-                  <div className="rounded-2xl border border-border bg-surface p-4">
-                    <div className="mb-2 flex items-center justify-between text-xs font-semibold">
-                      <span className="text-muted">Settlement Progress</span>
-                      <span className="text-primary font-mono">
-                        {paidCount} of {totalNonPayers} Paid
-                      </span>
-                    </div>
-                    <div className="h-2.5 w-full overflow-hidden rounded-full bg-surface-2">
-                      <div
-                        className="h-full bg-primary transition-all duration-500 ease-out"
-                        style={{ width: `${progressPercent}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    <p className="text-sm font-medium text-muted">
-                      Members Share
-                    </p>
-                    {viewing.members.map((member) => {
-                      const memberId = getSplitUserId(member.userId);
-                      const isPayer = memberId === payerId;
-                      const memberEmail =
-                        typeof member.userId === 'string'
-                          ? ''
-                          : member.userId.email;
-                      const isMe =
-                        user?.email?.toLowerCase() ===
-                        memberEmail.toLowerCase();
-
-                      // Can mark paid if it's the logged-in user themselves, they are not the payer, and they haven't paid yet
-                      const canMarkPaid = isMe && !isPayer && !member.paid;
-
-                      return (
-                        <div
-                          key={memberId}
-                          className="flex items-center justify-between rounded-2xl border border-border bg-surface p-3"
-                        >
-                          <div className="min-w-0 flex-1">
-                            <span className="flex items-center gap-2">
-                              <p className="truncate text-sm font-semibold">
-                                {splitUserName(member.userId)}
-                              </p>
-                              {isPayer && (
-                                <span className="rounded-full bg-primary/10 px-1 py-0.5 text-[8px] font-bold uppercase text-primary">
-                                  Payer
-                                </span>
-                              )}
-                              {isMe && (
-                                <span className="rounded-full bg-primary/15 px-1 py-0.5 text-[8px] font-bold uppercase text-primary">
-                                  You
-                                </span>
-                              )}
-                            </span>
-                            <div className="mt-0.5 flex items-center gap-2">
-                              <span
-                                className={cn(
-                                  'rounded-full px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide',
-                                  member.paid
-                                    ? 'bg-income/10 text-income'
-                                    : 'bg-surface-2 text-muted border border-border'
-                                )}
-                              >
-                                {member.paid ? 'Paid' : 'Unpaid'}
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-3">
-                            <p className="font-mono text-sm font-semibold">
-                              {formatCurrency(member.shareAmount, currency)}
-                            </p>
-                            {canMarkPaid && (
-                              <button
-                                type="button"
-                                disabled={markSplitPaid.isPending}
-                                onClick={() => {
-                                  markSplitPaid.mutate(
-                                    { splitId: viewing.id, memberId },
-                                    {
-                                      onSuccess: (updatedSplit) => {
-                                        setViewing(updatedSplit);
-                                      },
-                                    }
-                                  );
-                                }}
-                                className="rounded-xl bg-income px-3 py-1.5 text-xs font-bold text-income-foreground hover:opacity-90 transition disabled:opacity-50"
-                              >
-                                {markSplitPaid.isPending
-                                  ? 'Saving...'
-                                  : 'Mark Paid'}
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </>
-              );
-            })()}
-          </div>
-        )}
-      </BottomSheet>
 
       <BottomSheet
         isOpen={!!editing}
         onClose={() => setEditing(null)}
         title="Edit split"
+        showHeader={false}
+        className="h-[100dvh] max-h-[100dvh] rounded-none border-0 bg-surface p-0 sm:h-[92vh] sm:max-w-[430px] sm:rounded-2xl sm:border sm:p-0"
       >
-        <SplitModal split={editing} onClose={() => setEditing(null)} />
+        {editing && (
+          <div className="flex h-full min-h-0 flex-col bg-surface text-foreground">
+            {/* Header bar */}
+            <div className="flex h-16 shrink-0 items-center justify-between border-b border-border bg-surface px-3 sm:h-[74px] sm:px-5">
+              <button
+                type="button"
+                onClick={() => setEditing(null)}
+                className="grid h-10 w-10 shrink-0 place-items-center text-foreground sm:h-11 sm:w-11"
+                aria-label="Back"
+              >
+                <FiArrowLeft size={28} strokeWidth={2.2} />
+              </button>
+              <h2 className="min-w-0 flex-1 truncate px-2 text-center text-xl font-semibold leading-tight tracking-normal sm:px-4 sm:text-[28px] text-primary">
+                Edit Split
+              </h2>
+              <div className="w-10 sm:w-11" />
+            </div>
+
+            <div className="flex-1 min-h-0">
+              <SplitModal split={editing} onClose={() => setEditing(null)} />
+            </div>
+          </div>
+        )}
+      </BottomSheet>
+
+      <BottomSheet
+        isOpen={!!viewing}
+        onClose={() => setViewing(null)}
+        title="Split Details"
+        showHeader={false}
+        className="h-[100dvh] max-h-[100dvh] rounded-none border-0 bg-surface p-0 sm:h-[92vh] sm:max-w-[430px] sm:rounded-2xl sm:border sm:p-0"
+      >
+        {viewing && (
+          <div className="flex h-full min-h-0 flex-col bg-surface text-foreground">
+            {/* Header bar */}
+            <div className="flex h-16 shrink-0 items-center justify-between border-b border-border bg-surface px-3 sm:h-[74px] sm:px-5">
+              <button
+                type="button"
+                onClick={() => setViewing(null)}
+                className="grid h-10 w-10 shrink-0 place-items-center text-foreground sm:h-11 sm:w-11"
+                aria-label="Back"
+              >
+                <FiArrowLeft size={28} strokeWidth={2.2} />
+              </button>
+              <h2 className="min-w-0 flex-1 truncate px-2 text-center text-xl font-semibold leading-tight tracking-normal sm:px-4 sm:text-[28px] text-primary">
+                Split Details
+              </h2>
+              <div className="w-10 sm:w-11" />
+            </div>
+
+            {/* Render SplitModal directly (it handles its own layout and scrolling) */}
+            <div className="flex-1 min-h-0">
+              <SplitModal
+                split={viewing}
+                readOnly={true}
+                onClose={() => setViewing(null)}
+                onEdit={() => {
+                  setViewing(null);
+                  setEditing(viewing);
+                }}
+              />
+            </div>
+          </div>
+        )}
       </BottomSheet>
 
       <DeleteDialog

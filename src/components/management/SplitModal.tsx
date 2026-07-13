@@ -18,6 +18,8 @@ import type { Split, SplitUser } from '@/types';
 interface SplitModalProps {
   split?: Split | null;
   onClose: () => void;
+  readOnly?: boolean;
+  onEdit?: () => void;
 }
 
 function getSplitUserId(value: SplitUser | string) {
@@ -55,7 +57,7 @@ function getInitialValues(
   };
 }
 
-export function SplitModal({ split, onClose }: SplitModalProps) {
+export function SplitModal({ split, onClose, readOnly, onEdit }: SplitModalProps) {
   const { data: splitUsers = [], isLoading } = useSplitUsers();
   const { data: currentUser } = useCurrentUser();
   const createSplit = useCreateSplit();
@@ -202,7 +204,8 @@ export function SplitModal({ split, onClose }: SplitModalProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit(submit)} className="flex flex-col gap-4">
+    <form onSubmit={handleSubmit(submit)} className="flex h-full min-h-0 flex-col bg-surface text-foreground">
+      <div className="flex-1 overflow-y-auto px-4 pb-24 pt-5 sm:px-6 sm:pb-28 sm:pt-6 flex flex-col gap-4">
       {/* Record ID (edit mode) */}
       {split?.recordId && (
         <div className="rounded-2xl border border-border bg-surface-2 px-4 py-3">
@@ -219,6 +222,7 @@ export function SplitModal({ split, onClose }: SplitModalProps) {
       <Input
         label="Title"
         placeholder="Trip to Goa"
+        disabled={readOnly}
         error={errors.title?.message}
         {...register('title')}
       />
@@ -229,6 +233,7 @@ export function SplitModal({ split, onClose }: SplitModalProps) {
         min="0.01"
         inputMode="decimal"
         placeholder="5200"
+        disabled={readOnly}
         error={errors.amount?.message}
         {...register('amount', {
           setValueAs: (value) => (value === '' ? 0 : Number(value)),
@@ -272,7 +277,7 @@ export function SplitModal({ split, onClose }: SplitModalProps) {
       )}
 
       {/* Paid By */}
-      <Select label="Paid by" error={errors.paidBy?.message} {...register('paidBy')}>
+      <Select label="Paid by" disabled={readOnly} error={errors.paidBy?.message} {...register('paidBy')}>
         <option value="">Select who paid</option>
         {splitUsers
           .filter((su) => selectedIds.has(su.id))
@@ -288,12 +293,12 @@ export function SplitModal({ split, onClose }: SplitModalProps) {
       <input type="hidden" {...register('splitMode')} />
       <div>
         <p className="mb-2 text-sm font-medium">Split Mode</p>
-        <div className="grid grid-cols-2 gap-1.5 rounded-2xl bg-surface-2 p-1.5">
+        <div className={cn("grid grid-cols-2 gap-1.5 rounded-2xl bg-surface-2 p-1.5", readOnly && "pointer-events-none opacity-80")}>
           {(['equal', 'custom'] as const).map((mode) => (
             <button
               key={mode}
               type="button"
-              onClick={() => toggleSplitMode(mode)}
+              onClick={() => !readOnly && toggleSplitMode(mode)}
               className={cn(
                 'h-10 rounded-xl text-sm font-bold capitalize transition',
                 splitMode === mode
@@ -336,7 +341,7 @@ export function SplitModal({ split, onClose }: SplitModalProps) {
             <span className="text-xs text-expense">{errors.members.message}</span>
           )}
         </div>
-        <div className="flex flex-col gap-2">
+        <div className={cn("flex flex-col gap-2", readOnly && "pointer-events-none opacity-85")}>
           {splitUsers.map((splitUser) => {
             const selected = selectedIds.has(splitUser.id);
             const member = members.find(
@@ -411,6 +416,7 @@ export function SplitModal({ split, onClose }: SplitModalProps) {
                           type="number"
                           step="0.01"
                           min="0"
+                          disabled={readOnly}
                           inputMode="decimal"
                           placeholder="0.00"
                           value={member?.shareAmount ?? 0}
@@ -442,15 +448,29 @@ export function SplitModal({ split, onClose }: SplitModalProps) {
           })}
         </div>
       </div>
+      </div>
 
-      <Button
-        type="submit"
-        size="lg"
-        className="w-full"
-        isLoading={isEditing ? updateSplit.isPending : createSplit.isPending}
-      >
-        {isEditing ? 'Save changes' : 'Create split'}
-      </Button>
+      <div className="sticky bottom-0 z-20 shrink-0 border-t border-border bg-surface px-4 py-3 sm:px-6 sm:py-4">
+        {readOnly ? (
+          <Button
+            type="button"
+            size="lg"
+            className="w-full font-bold uppercase tracking-[0.08em]"
+            onClick={onClose}
+          >
+            Close
+          </Button>
+        ) : (
+          <Button
+            type="submit"
+            size="lg"
+            className="w-full font-bold uppercase tracking-[0.08em]"
+            isLoading={isEditing ? updateSplit.isPending : createSplit.isPending}
+          >
+            {isEditing ? 'Save changes' : 'Create split'}
+          </Button>
+        )}
+      </div>
     </form>
   );
 }

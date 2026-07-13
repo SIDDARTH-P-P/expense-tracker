@@ -31,6 +31,8 @@ interface TransactionFormProps {
   onSubmit: (values: TransactionFormValues, intent?: SubmitIntent) => void;
   isSubmitting?: boolean;
   onCancel?: () => void;
+  readOnly?: boolean;
+  onEdit?: () => void;
 }
 
 type PaymentMethod = TransactionFormValues['paymentMethod'];
@@ -477,7 +479,7 @@ function FieldShell({ children, className }: { children: React.ReactNode; classN
   );
 }
 
-export function TransactionForm({ defaultType = 'expense', initialData, onSubmit, isSubmitting, onCancel }: TransactionFormProps) {
+export function TransactionForm({ defaultType = 'expense', initialData, onSubmit, isSubmitting, onCancel, readOnly, onEdit }: TransactionFormProps) {
   const { data: categories = [] } = useCategories();
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [picker, setPicker] = useState<PickerType>(null);
@@ -518,7 +520,7 @@ export function TransactionForm({ defaultType = 'expense', initialData, onSubmit
   const filteredCategories = categories.filter((category) => category.type === type || category.type === 'both');
   const isIncome = type === 'income';
   const isOnlinePayment = paymentMethod !== 'cash';
-  const title = `${initialData ? 'Edit' : 'Add'} ${isIncome ? 'Income' : 'Expense'} Entry`;
+  const title = readOnly ? 'Transaction Details' : `${initialData ? 'Edit' : 'Add'} ${isIncome ? 'Income' : 'Expense'} Entry`;
   const accent = isIncome ? 'text-income' : 'text-expense';
 
   function handleTypeChange(newType: 'income' | 'expense') {
@@ -564,18 +566,22 @@ export function TransactionForm({ defaultType = 'expense', initialData, onSubmit
         <button type="button" onClick={onCancel} className="grid h-10 w-10 shrink-0 place-items-center text-foreground sm:h-11 sm:w-11" aria-label="Back">
           <FiArrowLeft size={28} strokeWidth={2.2} />
         </button>
-        <h2 className={cn('min-w-0 flex-1 truncate px-2 text-center text-xl font-semibold leading-tight tracking-normal sm:px-4 sm:text-[28px]', accent)}>
+        <h2 className={cn('min-w-0 flex-1 truncate px-2 text-center text-xl font-semibold leading-tight tracking-normal sm:px-4 sm:text-[28px]', readOnly ? 'text-primary' : accent)}>
           {title}
         </h2>
-        <button type="button" className="grid h-10 w-10 shrink-0 place-items-center text-primary sm:h-11 sm:w-11" aria-label="Settings">
-          <FiSettings size={28} strokeWidth={2.2} />
-        </button>
+        {readOnly ? (
+          <div className="w-10 sm:w-11" />
+        ) : (
+          <button type="button" className="grid h-10 w-10 shrink-0 place-items-center text-primary sm:h-11 sm:w-11" aria-label="Settings">
+            <FiSettings size={28} strokeWidth={2.2} />
+          </button>
+        )}
       </div>
 
-      <div className="grid shrink-0 grid-cols-2 gap-2 border-b border-border bg-surface px-3 py-3 sm:gap-3 sm:px-5 sm:py-5">
+      <div className={cn("grid shrink-0 grid-cols-2 gap-2 border-b border-border bg-surface px-3 py-3 sm:gap-3 sm:px-5 sm:py-5", readOnly && "pointer-events-none opacity-80")}>
         <button
           type="button"
-          onClick={() => setPicker('date')}
+          onClick={() => !readOnly && setPicker('date')}
           className="flex min-w-0 items-center gap-1.5 rounded-2xl border border-border/70 bg-surface-2/35 px-2.5 py-2 text-left transition hover:border-primary/60 sm:gap-3 sm:px-4 sm:py-3"
         >
           <FiCalendar size={21} className="shrink-0 text-muted sm:size-[30px]" />
@@ -584,7 +590,7 @@ export function TransactionForm({ defaultType = 'expense', initialData, onSubmit
         </button>
         <button
           type="button"
-          onClick={() => setPicker('time')}
+          onClick={() => !readOnly && setPicker('time')}
           className="flex min-w-0 items-center justify-end gap-1.5 rounded-2xl border border-border/70 bg-surface-2/35 px-2.5 py-2 text-left transition hover:border-primary/60 sm:gap-3 sm:px-4 sm:py-3"
         >
           <FiClock size={22} className="shrink-0 text-muted sm:size-8" />
@@ -594,10 +600,10 @@ export function TransactionForm({ defaultType = 'expense', initialData, onSubmit
       </div>
 
       <div className="flex-1 overflow-y-auto px-3 pb-24 pt-5 sm:px-5 sm:pb-28 sm:pt-10">
-        <div className="mb-5 grid grid-cols-2 gap-2 rounded-2xl bg-surface-2 p-1.5 sm:mb-6 sm:gap-3 sm:rounded-full">
+        <div className={cn("mb-5 grid grid-cols-2 gap-2 rounded-2xl bg-surface-2 p-1.5 sm:mb-6 sm:gap-3 sm:rounded-full", readOnly && "pointer-events-none opacity-80")}>
           <button
             type="button"
-            onClick={() => handleTypeChange('income')}
+            onClick={() => !readOnly && handleTypeChange('income')}
             className={cn(
               'h-10 rounded-xl text-sm font-bold transition sm:h-11 sm:rounded-full sm:text-base',
               isIncome ? 'bg-income text-income-foreground shadow-sm' : 'text-muted hover:text-foreground'
@@ -607,7 +613,7 @@ export function TransactionForm({ defaultType = 'expense', initialData, onSubmit
           </button>
           <button
             type="button"
-            onClick={() => handleTypeChange('expense')}
+            onClick={() => !readOnly && handleTypeChange('expense')}
             className={cn(
               'h-10 rounded-xl text-sm font-bold transition sm:h-11 sm:rounded-full sm:text-base',
               !isIncome ? 'bg-expense text-expense-foreground shadow-sm' : 'text-muted hover:text-foreground'
@@ -619,7 +625,7 @@ export function TransactionForm({ defaultType = 'expense', initialData, onSubmit
 
         <div className="space-y-6 sm:space-y-8">
           <div>
-            <FieldShell className={errors.amount ? 'border-expense focus-within:border-expense' : undefined}>
+            <FieldShell className={cn(errors.amount ? 'border-expense focus-within:border-expense' : undefined, readOnly && 'pointer-events-none opacity-80')}>
               <label className="pointer-events-none absolute left-5 top-2 text-xs leading-none text-muted sm:left-8 sm:text-sm">
                 Amount <span className="font-bold text-expense">*</span>
               </label>
@@ -629,6 +635,7 @@ export function TransactionForm({ defaultType = 'expense', initialData, onSubmit
                 min="0.01"
                 inputMode="decimal"
                 placeholder="0"
+                disabled={readOnly}
                 className={cn('h-full w-full bg-transparent px-5 pb-1 pt-5 text-xl font-bold outline-none placeholder:text-muted sm:px-8 sm:pt-6 sm:text-[24px]', accent)}
                 {...register('amount', { setValueAs: (value) => (value === '' ? 0 : Number(value)) })}
               />
@@ -636,22 +643,23 @@ export function TransactionForm({ defaultType = 'expense', initialData, onSubmit
             {errors.amount && <p className="mt-2 text-sm font-medium text-expense">{errors.amount.message}</p>}
           </div>
 
-          <FieldShell>
-            <button type="button" className="flex h-full w-full items-center justify-between px-5 text-left sm:px-8">
+          <FieldShell className={cn(readOnly && 'pointer-events-none opacity-80')}>
+            <button type="button" disabled={readOnly} className="flex h-full w-full items-center justify-between px-5 text-left sm:px-8">
               <span className="truncate text-lg font-light text-muted sm:text-[24px]">Party (Customer/Supplier)</span>
               <FiChevronDown size={22} className="shrink-0 text-muted sm:size-6" />
             </button>
           </FieldShell>
 
           <div>
-            <FieldShell className={errors.title ? 'border-expense focus-within:border-expense' : undefined}>
+            <FieldShell className={cn(errors.title ? 'border-expense focus-within:border-expense' : undefined, readOnly && 'pointer-events-none opacity-80')}>
               <input
                 type="text"
                 placeholder="Remark"
+                disabled={readOnly}
                 className="h-full w-full bg-transparent px-5 pr-14 text-lg font-light text-foreground outline-none placeholder:text-muted sm:px-8 sm:pr-16 sm:text-[24px]"
                 {...register('title')}
               />
-              <FiMic size={28} className="pointer-events-none absolute right-5 top-1/2 -translate-y-1/2 text-primary sm:right-7 sm:size-8" />
+              {!readOnly && <FiMic size={28} className="pointer-events-none absolute right-5 top-1/2 -translate-y-1/2 text-primary sm:right-7 sm:size-8" />}
             </FieldShell>
             {errors.title && <p className="mt-2 text-sm font-medium text-expense">{errors.title.message}</p>}
           </div>
@@ -659,7 +667,10 @@ export function TransactionForm({ defaultType = 'expense', initialData, onSubmit
           <div>
             <label
               htmlFor="proof-upload"
-              className="flex min-h-[116px] w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-border bg-surface-2/40 px-4 py-4 text-center transition hover:border-primary hover:bg-surface-2/70"
+              className={cn(
+                "flex min-h-[116px] w-full cursor-pointer flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-border bg-surface-2/40 px-4 py-4 text-center transition hover:border-primary hover:bg-surface-2/70",
+                readOnly && "pointer-events-none opacity-80"
+              )}
             >
               <span className="grid h-8 w-8 place-items-center rounded-xl bg-primary/10 text-primary">
                 <FiFileText size={17} />
@@ -674,6 +685,7 @@ export function TransactionForm({ defaultType = 'expense', initialData, onSubmit
               id="proof-upload"
               ref={proofInputRef}
               type="file"
+              disabled={readOnly}
               accept="image/*,application/pdf"
               className="hidden"
               onChange={(event) => setProofFile(event.target.files?.[0] ?? null)}
@@ -681,7 +693,7 @@ export function TransactionForm({ defaultType = 'expense', initialData, onSubmit
             {proofFile && <p className="mt-2 truncate text-sm font-medium text-muted">{proofFile.name}</p>}
           </div>
 
-          <div>
+          <div className={cn(readOnly && "pointer-events-none opacity-80")}>
             <QuickCategoryPicker
               categories={filteredCategories}
               value={categoryValue}
@@ -694,7 +706,7 @@ export function TransactionForm({ defaultType = 'expense', initialData, onSubmit
             />
           </div>
 
-          <div>
+          <div className={cn(readOnly && "pointer-events-none opacity-80")}>
             <p className="mb-3 text-lg font-bold text-muted sm:mb-4 sm:text-[22px]">Payment Mode</p>
             <div className="flex flex-wrap items-center gap-3 sm:gap-5">
               <PaymentPill active={paymentMethod === 'cash'} onClick={() => handlePaymentChange('cash')}>
@@ -741,32 +753,45 @@ export function TransactionForm({ defaultType = 'expense', initialData, onSubmit
             {errors.paymentMethod && <p className="mt-2 text-sm font-medium text-expense">{errors.paymentMethod.message}</p>}
           </div>
 
-          <button
-            type="button"
-            className="min-h-12 rounded-2xl border border-border bg-surface px-4 text-sm font-bold uppercase tracking-[0.08em] text-primary sm:h-[58px] sm:rounded-[6px] sm:px-7 sm:text-[22px] sm:tracking-[0.12em]"
-          >
-            Add More Fields
-          </button>
+          {!readOnly && (
+            <button
+              type="button"
+              className="min-h-12 rounded-2xl border border-border bg-surface px-4 text-sm font-bold uppercase tracking-[0.08em] text-primary sm:h-[58px] sm:rounded-[6px] sm:px-7 sm:text-[22px] sm:tracking-[0.12em]"
+            >
+              Add More Fields
+            </button>
+          )}
         </div>
       </div>
 
-      <div className="sticky bottom-0 z-20 grid shrink-0 grid-cols-[minmax(0,1fr)_minmax(88px,0.55fr)] gap-3 border-t border-border bg-surface px-3 py-3 sm:grid-cols-[1fr_0.58fr] sm:gap-5 sm:px-5 sm:py-5">
-        <button
-          type="button"
-          disabled={isSubmitting}
-          onClick={handleSubmit((values) => onSubmit(serializeValues(values), 'saveAndNew'))}
-          className="h-12 min-w-0 rounded-xl border-2 border-primary bg-surface px-2 text-xs font-bold uppercase tracking-[0.08em] text-primary disabled:opacity-60 sm:h-[62px] sm:rounded-[6px] sm:text-[20px] sm:tracking-[0.16em]"
-        >
-          <span className="sm:hidden">Save & Add</span>
-          <span className="hidden sm:inline">Save & Add New</span>
-        </button>
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="h-12 min-w-0 rounded-xl bg-primary px-2 text-sm font-bold uppercase tracking-[0.08em] text-primary-foreground disabled:opacity-60 sm:h-[62px] sm:rounded-[6px] sm:text-[20px] sm:tracking-[0.16em]"
-        >
-          {isSubmitting ? 'Saving' : 'Save'}
-        </button>
+      <div className="sticky bottom-0 z-20 grid shrink-0 grid-cols-2 gap-3 border-t border-border bg-surface px-3 py-3 sm:gap-5 sm:px-5 sm:py-5">
+        {readOnly ? (
+          <button
+            type="button"
+            onClick={onCancel}
+            className="col-span-2 h-12 w-full rounded-xl bg-primary text-sm font-bold uppercase tracking-[0.08em] text-primary-foreground sm:h-[62px] sm:rounded-[6px] sm:text-[20px] sm:tracking-[0.16em]"
+          >
+            Close
+          </button>
+        ) : (
+          <>
+            <button
+              type="button"
+              disabled={isSubmitting}
+              onClick={onCancel}
+              className="h-12 min-w-0 rounded-xl border-2 border-primary bg-surface px-2 text-sm font-bold uppercase tracking-[0.08em] text-primary disabled:opacity-60 sm:h-[62px] sm:rounded-[6px] sm:text-[20px] sm:tracking-[0.16em]"
+            >
+              Close
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="h-12 min-w-0 rounded-xl bg-primary px-2 text-sm font-bold uppercase tracking-[0.08em] text-primary-foreground disabled:opacity-60 sm:h-[62px] sm:rounded-[6px] sm:text-[20px] sm:tracking-[0.16em]"
+            >
+              {isSubmitting ? 'Saving' : 'Save'}
+            </button>
+          </>
+        )}
       </div>
 
       <AnimatePresence>

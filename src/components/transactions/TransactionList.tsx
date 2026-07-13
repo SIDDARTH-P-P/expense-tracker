@@ -9,8 +9,10 @@ import { ErrorState } from '@/components/common/ErrorState';
 import { BottomSheet } from '@/components/common/BottomSheet';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { TransactionForm } from '@/components/forms/TransactionForm';
+import { SplitModal } from '@/components/management/SplitModal';
 import { useDeleteTransaction, useUpdateTransaction } from '@/hooks/useTransactions';
-import { FiInbox, FiLoader } from 'react-icons/fi';
+import { useSplit } from '@/hooks/useManagement';
+import { FiInbox, FiLoader, FiArrowLeft } from 'react-icons/fi';
 import type { Transaction } from '@/types';
 import type { InfiniteData } from '@tanstack/react-query';
 import type { PaginatedResult } from '@/types';
@@ -60,6 +62,7 @@ export function TransactionList({
 	  const sentinelRef = useRef<HTMLDivElement>(null);
 	  const [editing, setEditing] = useState<Transaction | null>(null);
 	  const [deleting, setDeleting] = useState<Transaction | null>(null);
+	  const [viewing, setViewing] = useState<Transaction | null>(null);
 	  const updateTx = useUpdateTransaction();
 	  const deleteTx = useDeleteTransaction();
 
@@ -145,6 +148,7 @@ export function TransactionList({
 	                  currency={currency}
 	                  onEdit={setEditing}
 	                  onDelete={setDeleting}
+	                  onView={setViewing}
 	                />
 	              </motion.div>
 	            ))}
@@ -211,6 +215,81 @@ export function TransactionList({
 	        }}
 	        onCancel={() => setDeleting(null)}
 	      />
+
+	      <BottomSheet
+	        isOpen={!!viewing}
+	        onClose={() => setViewing(null)}
+	        title="Transaction details"
+	        showHeader={false}
+	        className="h-[100dvh] max-h-[100dvh] rounded-none border-0 bg-surface p-0 sm:h-[92vh] sm:max-w-[430px] sm:rounded-2xl sm:border sm:p-0"
+	      >
+	        {viewing && (
+	          viewing.splitId ? (
+	            <div className="flex h-full min-h-0 flex-col bg-surface text-foreground">
+	              {/* Header bar */}
+	              <div className="flex h-16 shrink-0 items-center justify-between border-b border-border bg-surface px-3 sm:h-[74px] sm:px-5">
+	                <button
+	                  type="button"
+	                  onClick={() => setViewing(null)}
+	                  className="grid h-10 w-10 shrink-0 place-items-center text-foreground sm:h-11 sm:w-11"
+	                  aria-label="Back"
+	                >
+	                  <FiArrowLeft size={28} strokeWidth={2.2} />
+	                </button>
+	                <h2 className="min-w-0 flex-1 truncate px-2 text-center text-xl font-semibold leading-tight tracking-normal sm:px-4 sm:text-[28px] text-primary">
+	                  Split Details
+	                </h2>
+	                <div className="w-10 sm:w-11" />
+	              </div>
+
+	              {/* Render SplitModalWrapper directly (it handles its own layout and scrolling) */}
+	              <div className="flex-1 min-h-0">
+	                <SplitModalWrapper
+	                  transaction={viewing}
+	                  onClose={() => setViewing(null)}
+	                  onEdit={() => {
+	                    const txId = getTransactionId(viewing);
+	                    setViewing(null);
+	                    if (txId) {
+	                      setEditing(viewing);
+	                    }
+	                  }}
+	                />
+	              </div>
+	            </div>
+	          ) : (
+	            <TransactionForm
+	              initialData={viewing}
+	              readOnly={true}
+	              onCancel={() => setViewing(null)}
+	              onEdit={() => {
+	                const txId = getTransactionId(viewing);
+	                setViewing(null);
+	                if (txId) {
+	                  setEditing(viewing);
+	                }
+	              }}
+	              onSubmit={() => {}}
+	            />
+	          )
+	        )}
+	      </BottomSheet>
 	    </div>
 	  );
 	}
+
+function SplitModalWrapper({ transaction, onClose, onEdit }: { transaction: Transaction; onClose: () => void; onEdit: () => void }) {
+  const { data: split } = useSplit(transaction.splitId);
+  return split ? (
+    <SplitModal
+      split={split}
+      readOnly={true}
+      onClose={onClose}
+      onEdit={onEdit}
+    />
+  ) : (
+    <div className="flex items-center justify-center py-8">
+      <span className="text-sm text-muted">Loading split details...</span>
+    </div>
+  );
+}

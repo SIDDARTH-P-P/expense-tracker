@@ -2,14 +2,17 @@
 
 import { useState, memo, type PointerEvent } from 'react';
 import { motion, useMotionValue, useTransform, type PanInfo, AnimatePresence } from 'framer-motion';
-import { FiTrash2, FiCopy, FiEdit2, FiMoreVertical, FiMessageSquare } from 'react-icons/fi';
+import { FiTrash2, FiCopy, FiEdit2, FiMoreVertical, FiMessageSquare, FiEye, FiArrowLeft } from 'react-icons/fi';
 import * as Icons from 'react-icons/fi';
 import type { IconType } from 'react-icons';
 import { formatCurrency, formatDate, formatTime } from '@/lib/utils/format';
 import { useDuplicateTransaction } from '@/hooks/useTransactions';
 import { useCurrentUser } from '@/hooks/useAuth';
 import { useSplit, useMarkSplitPaid } from '@/hooks/useManagement';
+import { useQueryClient } from '@tanstack/react-query';
 import { BottomSheet } from '@/components/common/BottomSheet';
+import { TransactionForm } from '@/components/forms/TransactionForm';
+import { SplitModal } from '@/components/management/SplitModal';
 import { cn } from '@/lib/utils/cn';
 import type { Transaction, Category, Split, SplitUser } from '@/types';
 
@@ -30,6 +33,7 @@ interface TransactionCardProps {
   compact?: boolean;
   onEdit?: (transaction: Transaction) => void;
   onDelete?: (transaction: Transaction) => void;
+  onView?: (transaction: Transaction) => void;
 }
 
 type TransactionWithMongoId = Transaction & { _id?: string | { toString(): string } };
@@ -53,12 +57,10 @@ function stopCardDrag(event: PointerEvent<HTMLButtonElement>) {
   event.stopPropagation();
 }
 
-function TransactionCardInner({ transaction, currency, compact, onEdit, onDelete }: TransactionCardProps) {
+function TransactionCardInner({ transaction, currency, compact, onEdit, onDelete, onView }: TransactionCardProps) {
   const [showActions, setShowActions] = useState(false);
-  const [showSplitDetails, setShowSplitDetails] = useState(false);
   const { data: user } = useCurrentUser();
-  const { data: split } = useSplit(showSplitDetails ? transaction.splitId : null);
-  const markSplitPaid = useMarkSplitPaid();
+  const qc = useQueryClient();
 
   const x = useMotionValue(0);
   const deleteOpacity = useTransform(x, [-SWIPE_DELETE_WIDTH, -24], [1, 0]);
@@ -122,17 +124,7 @@ function TransactionCardInner({ transaction, currency, compact, onEdit, onDelete
           dragElastic={0.1}
           style={{ x, opacity: cardOpacity }}
           onDragEnd={handleDragEnd}
-          onClick={() => {
-            if (transaction.splitId) {
-              setShowSplitDetails(true);
-            } else if (onEdit) {
-              onEdit(transaction);
-            }
-          }}
-          className={cn(
-            "relative flex touch-pan-y select-none items-center gap-3 rounded-2xl border border-border bg-surface p-3 transition-colors hover:border-border/80 hover:shadow-soft sm:p-3.5 cursor-pointer",
-            !transaction.splitId && "active:scale-[0.99]"
-          )}
+          className="relative flex touch-pan-y select-none items-center gap-3 rounded-2xl border border-border bg-surface p-3 transition-colors hover:shadow-soft sm:p-3.5"
         >
           {/* Category icon */}
           <div
@@ -193,7 +185,21 @@ function TransactionCardInner({ transaction, currency, compact, onEdit, onDelete
               {!compact && (
                 <div className="hidden sm:flex items-center gap-0.5">
                   <button
-                    onClick={editTransaction}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onView?.(transaction);
+                    }}
+                    onPointerDown={stopCardDrag}
+                    aria-label="View details"
+                    className="flex h-7.5 w-7.5 items-center justify-center rounded-lg transition-colors text-muted hover:bg-primary/10 hover:text-primary"
+                  >
+                    <FiEye size={12} />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      editTransaction();
+                    }}
                     onPointerDown={stopCardDrag}
                     disabled={!canEdit}
                     aria-label="Edit"
@@ -202,7 +208,10 @@ function TransactionCardInner({ transaction, currency, compact, onEdit, onDelete
                     <FiEdit2 size={12} />
                   </button>
                   <button
-                    onClick={duplicateTransaction}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      duplicateTransaction();
+                    }}
                     onPointerDown={stopCardDrag}
                     disabled={!transactionId || duplicateTx.isPending}
                     aria-label="Duplicate"
@@ -211,7 +220,10 @@ function TransactionCardInner({ transaction, currency, compact, onEdit, onDelete
                     <FiCopy size={12} />
                   </button>
                   <button
-                    onClick={requestDeleteTransaction}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      requestDeleteTransaction();
+                    }}
                     onPointerDown={stopCardDrag}
                     disabled={!canDelete}
                     aria-label="Delete"
@@ -222,13 +234,34 @@ function TransactionCardInner({ transaction, currency, compact, onEdit, onDelete
                 </div>
               )}
 
+              {/* Mobile view button */}
+              {!compact && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onView?.(transaction);
+                  }}
+                  onPointerDown={stopCardDrag}
+                  className="sm:hidden flex h-7.5 w-7.5 items-center justify-center rounded-lg transition-colors text-muted hover:bg-surface-2"
+                  aria-label="View details"
+                >
+                  <FiEye size={13} />
+                </button>
+              )}
+
               {/* Mobile more button */}
               {!compact && (
                 <button
-                  onClick={() => setShowActions((s) => !s)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowActions((s) => !s);
+                  }}
                   onPointerDown={stopCardDrag}
                   disabled={!transactionId}
-                  className="sm:hidden flex h-7.5 w-7.5 items-center justify-center rounded-lg text-muted hover:bg-surface-2"
+                  className={cn(
+                    "sm:hidden flex h-7.5 w-7.5 items-center justify-center rounded-lg transition-colors",
+                    showActions ? "bg-surface-2 text-foreground" : "text-muted hover:bg-surface-2"
+                  )}
                   aria-label="More actions"
                 >
                   <FiMoreVertical size={13} />
@@ -250,21 +283,31 @@ function TransactionCardInner({ transaction, currency, compact, onEdit, onDelete
             >
               <div className="grid grid-cols-3 gap-2 px-1 pb-1 pt-2">
                 <button
-                  onClick={editTransaction}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    editTransaction();
+                  }}
                   disabled={!canEdit}
                   className="flex min-w-0 items-center justify-center gap-1 rounded-xl bg-primary/10 px-2 py-2.5 text-[11px] font-semibold text-primary min-[380px]:gap-1.5 min-[380px]:text-xs"
                 >
                   <FiEdit2 size={12} /> Edit
                 </button>
                 <button
-                  onClick={() => { duplicateTransaction(); setShowActions(false); }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    duplicateTransaction();
+                    setShowActions(false);
+                  }}
                   disabled={!transactionId || duplicateTx.isPending}
                   className="flex min-w-0 items-center justify-center gap-1 rounded-xl bg-surface-2 px-2 py-2.5 text-[11px] font-semibold min-[380px]:gap-1.5 min-[380px]:text-xs"
                 >
                   <FiCopy size={12} /> Duplicate
                 </button>
                 <button
-                  onClick={requestDeleteTransaction}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    requestDeleteTransaction();
+                  }}
                   disabled={!canDelete}
                   className="flex min-w-0 items-center justify-center gap-1 rounded-xl bg-expense/10 px-2 py-2.5 text-[11px] font-semibold text-expense min-[380px]:gap-1.5 min-[380px]:text-xs"
                 >
@@ -274,128 +317,6 @@ function TransactionCardInner({ transaction, currency, compact, onEdit, onDelete
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* View detail sheet */}
-        <BottomSheet isOpen={showSplitDetails} onClose={() => setShowSplitDetails(false)} title="Split details">
-          {split ? (
-            <div className="flex flex-col gap-4">
-              <div className="rounded-2xl border border-border bg-surface-2 p-4">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-muted">Record ID</p>
-                <p className="font-mono text-sm font-semibold text-primary">{split.recordId}</p>
-              </div>
-              <div>
-                <p className="text-sm text-muted">Title</p>
-                <p className="text-lg font-semibold">{split.title}</p>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-2xl border border-border bg-surface p-3">
-                  <p className="text-xs text-muted">Amount</p>
-                  <p className="font-mono font-bold text-primary">{formatCurrency(split.amount, currency)}</p>
-                </div>
-                <div className="rounded-2xl border border-border bg-surface p-3">
-                  <p className="text-xs text-muted">Paid by</p>
-                  <p className="truncate font-semibold">{splitUserName(split.paidBy)}</p>
-                </div>
-              </div>
-
-              {(() => {
-                const payerId = getSplitUserId(split.paidBy);
-                const nonPayers = split.members.filter((m) => getSplitUserId(m.userId) !== payerId);
-                const paidNonPayers = nonPayers.filter((m) => m.paid);
-                const totalNonPayers = nonPayers.length;
-                const paidCount = paidNonPayers.length;
-                const progressPercent = totalNonPayers > 0 ? (paidCount / totalNonPayers) * 100 : 100;
-
-                return (
-                  <>
-                    {/* Progress section */}
-                    <div className="rounded-2xl border border-border bg-surface p-4">
-                      <div className="mb-2 flex items-center justify-between text-xs font-semibold">
-                        <span className="text-muted">Settlement Progress</span>
-                        <span className="text-primary font-mono">{paidCount} of {totalNonPayers} Paid</span>
-                      </div>
-                      <div className="h-2.5 w-full overflow-hidden rounded-full bg-surface-2">
-                        <div
-                          className="h-full bg-primary transition-all duration-500 ease-out"
-                          style={{ width: `${progressPercent}%` }}
-                        />
-                      </div>
-                    </div>
-
-                    <div className="flex flex-col gap-2">
-                      <p className="text-sm font-medium text-muted">Members Share</p>
-                      {split.members.map((member) => {
-                        const memberId = getSplitUserId(member.userId);
-                        const isPayer = memberId === payerId;
-                        const memberEmail = typeof member.userId === 'string' ? '' : member.userId.email;
-                        const isMe = user?.email?.toLowerCase() === memberEmail.toLowerCase();
-                        
-                        // Can mark paid if it's the logged-in user themselves, they are not the payer, and they haven't paid yet
-                        const canMarkPaid = isMe && !isPayer && !member.paid;
-
-                        return (
-                          <div
-                            key={memberId}
-                            className="flex items-center justify-between rounded-2xl border border-border bg-surface p-3"
-                          >
-                            <div className="min-w-0 flex-1">
-                              <span className="flex items-center gap-2">
-                                <p className="truncate text-sm font-semibold">{splitUserName(member.userId)}</p>
-                                {isPayer && (
-                                  <span className="rounded-full bg-primary/10 px-1 py-0.2 text-[8px] font-bold uppercase text-primary">
-                                    Payer
-                                  </span>
-                                )}
-                              </span>
-                              <div className="mt-0.5 flex items-center gap-2">
-                                <span
-                                  className={cn(
-                                    'rounded-full px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-wide',
-                                    member.paid ? 'bg-income/10 text-income' : 'bg-surface-2 text-muted border border-border'
-                                  )}
-                                >
-                                  {member.paid ? 'Paid' : 'Unpaid'}
-                                </span>
-                              </div>
-                            </div>
-                            
-                            <div className="flex items-center gap-3">
-                              <p className="font-mono text-sm font-semibold">{formatCurrency(member.shareAmount, currency)}</p>
-                              {canMarkPaid && (
-                                <button
-                                  type="button"
-                                  disabled={markSplitPaid.isPending}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    markSplitPaid.mutate(
-                                      { splitId: split.id, memberId },
-                                      {
-                                        onSuccess: () => {
-                                          // Auto-updates from React Query cache validation
-                                        },
-                                      }
-                                    );
-                                  }}
-                                  className="rounded-xl bg-income px-3 py-1.5 text-xs font-bold text-income-foreground hover:opacity-90 transition disabled:opacity-50"
-                                >
-                                  {markSplitPaid.isPending ? 'Saving...' : 'Mark Paid'}
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </>
-                );
-              })()}
-            </div>
-          ) : (
-            <div className="flex items-center justify-center py-8">
-              <span className="text-sm text-muted">Loading split details...</span>
-            </div>
-          )}
-        </BottomSheet>
       </div>
   );
 }
