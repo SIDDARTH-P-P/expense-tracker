@@ -136,35 +136,28 @@ function TransactionCardInner({ transaction, currency, compact, onEdit, onDelete
 
           {/* Content */}
           <div className="min-w-0 flex-1">
-            <div className="flex min-w-0 items-center flex-wrap gap-1.5">
+            <div className="flex min-w-0 items-center gap-1.5">
               <p className="truncate text-sm font-semibold">{transaction.title}</p>
-              {transaction.splitId && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-primary">
-                  Split {transaction.splitMembersCount ? `· ${transaction.splitMembersCount} Members` : ''}
-                </span>
-              )}
               {!compact && transaction.note && (
                 <FiMessageSquare size={10} className="shrink-0 text-muted" />
               )}
             </div>
-            <div className="mt-1 flex min-w-0 flex-col gap-0.5 text-xs text-muted sm:flex-row sm:items-center sm:gap-1.5">
-              <span className="max-w-full truncate sm:max-w-[8rem]">{category?.name ?? '—'}</span>
-              <span className="hidden opacity-40 sm:inline">·</span>
+            <div className="mt-1 flex min-w-0 flex-row items-center flex-wrap gap-x-1.5 gap-y-0.5 text-xs text-muted">
+              <span className="max-w-[8rem] truncate">{category?.name ?? '—'}</span>
+              {transaction.splitId && (
+                <>
+                  <span className="opacity-40">·</span>
+                  <span className="whitespace-nowrap">
+                    {transaction.splitMembersCount ? `${transaction.splitMembersCount} Members` : 'Split'}
+                  </span>
+                </>
+              )}
+              <span className="opacity-40">·</span>
               <span className="whitespace-nowrap">
                 {formatDate(transaction.date)}
                 {!compact && ` · ${formatTime(transaction.date)}`}
               </span>
-              {/* {transaction.recordId && (
-                <>
-                  <span className="hidden opacity-40 sm:inline">·</span>
-                  <span className="whitespace-nowrap font-mono text-[10px] uppercase text-primary">{transaction.recordId}</span>
-                </>
-              )} */}
             </div>
-            {/* Note preview */}
-            {!compact && transaction.note && (
-              <p className="mt-0.5 text-[11px] text-muted truncate italic">&ldquo;{transaction.note}&rdquo;</p>
-            )}
           </div>
 
           {/* Right: amount + actions */}
