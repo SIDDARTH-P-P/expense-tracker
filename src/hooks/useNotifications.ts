@@ -193,7 +193,7 @@ export function useNotifications() {
         eventSourceRef.current.close();
       }
 
-      const es = new EventSource('/api/notifications/sse');
+      const es = new EventSource('/api/notifications/sse?t=' + Date.now());
       eventSourceRef.current = es;
 
       es.addEventListener('notification', (event) => {
@@ -255,6 +255,7 @@ export function useNotifications() {
             if (currentTheme !== settings.theme) {
               useUIStore.getState().setTheme(settings.theme);
             }
+            qc.invalidateQueries({ queryKey: ['auth', 'me'] });
           }
           if (settings.currency) {
             qc.invalidateQueries({ queryKey: ['auth', 'me'] });

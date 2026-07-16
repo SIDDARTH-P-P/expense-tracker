@@ -99,6 +99,8 @@ export function useCreateSplit() {
     mutationFn: (input: SplitFormValues) => apiClient.post<Split>('/splits', input),
     onSuccess: (created) => {
       qc.invalidateQueries({ queryKey: splitsQueryKey(userId) });
+      qc.invalidateQueries({ queryKey: ['transactions'] });
+      qc.invalidateQueries({ queryKey: ['dashboard', 'summary'] });
       toast.success(`Split ${created.recordId} created.`);
     },
     onError: (err: ApiClientError) => toast.error(err.message),
@@ -113,6 +115,8 @@ export function useUpdateSplit() {
       apiClient.patch<Split>(`/splits/${id}`, input),
     onSuccess: (updated) => {
       qc.invalidateQueries({ queryKey: splitsQueryKey(userId) });
+      qc.invalidateQueries({ queryKey: ['transactions'] });
+      qc.invalidateQueries({ queryKey: ['dashboard', 'summary'] });
       toast.success(`Split ${updated.recordId} updated.`);
     },
     onError: (err: ApiClientError) => toast.error(err.message),
@@ -126,6 +130,8 @@ export function useDeleteSplit() {
     mutationFn: (id: string) => apiClient.delete(`/splits/${id}`),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: splitsQueryKey(userId) });
+      qc.invalidateQueries({ queryKey: ['transactions'] });
+      qc.invalidateQueries({ queryKey: ['dashboard', 'summary'] });
       toast.success('Split deleted.');
     },
     onError: (err: ApiClientError) => toast.error(err.message),
@@ -140,6 +146,8 @@ export function useMarkSplitPaid() {
       apiClient.post<Split>(`/splits/${splitId}/pay`, { memberId }),
     onSuccess: (updated) => {
       qc.invalidateQueries({ queryKey: splitsQueryKey(userId) });
+      qc.invalidateQueries({ queryKey: ['transactions'] });
+      qc.invalidateQueries({ queryKey: ['dashboard', 'summary'] });
       toast.success(`Member marked as paid.`);
     },
     onError: (err: ApiClientError) => toast.error(err.message),

@@ -210,7 +210,8 @@ export const splitService = {
         createdDocs.push({ model: Transaction, id: tx._id });
       }
 
-      // 2. Create Receivers Transactions (Income shares) + Notifications
+      // 2. Prepare Notifications for Receivers
+      const notificationsToCreate: { targetUserId: string; title: string; message: string; type: 'Split Created' | 'Split Paid' | 'Split Reminder'; relatedId: string }[] = [];
       const payerName = payerUser ? payerUser.name : payerSplitUser.name;
       for (const m of members) {
         if (m.userId.toString() === input.paidBy) continue; // Payer doesn't owe
@@ -220,29 +221,8 @@ export const splitService = {
 
         const subUser = await User.findOne({ email: subSplitUser.email.toLowerCase() }).session(useTransaction ? dbSession : null);
         if (subUser) {
-          // Create Transaction
-          const cat = await getOrCreateSplitCategory(subUser._id, useTransaction ? dbSession : undefined);
-          const txRecordId = await generateRecordId('INC');
-        const [tx] = await Transaction.create([{
-          recordId: txRecordId,
-          userId: subUser._id,
-          title: input.title,
-          amount: m.shareAmount,
-          type: 'income',
-          category: cat._id,
-          date: new Date(),
-          note: `Owed to ${payerName} for split: ${input.title}`,
-          splitId: split._id,
-          splitRecordId,
-          splitMembersCount: members.length,
-          createdFrom: 'Split',
-          createdBy: new Types.ObjectId(userId),
-          transactionType: 'Split Income',
-          status: 'Pending',
-        }], useTransaction ? { session: dbSession } : {});
-        createdDocs.push({ model: Transaction, id: tx._id });
-          // Create Notification
-          const n = await notificationService.create(subUser._id.toString(), {
+          notificationsToCreate.push({
+            targetUserId: subUser._id.toString(),
             title: `${payerName} added you to a split`,
             message: `You owe ₹${m.shareAmount} for "${input.title}"`,
             type: 'Split Created',
@@ -260,6 +240,20 @@ export const splitService = {
 
       if (useTransaction) {
         await dbSession.commitTransaction();
+      }
+
+      // 4. Create Notifications after transaction commits
+      for (const n of notificationsToCreate) {
+        try {
+          await notificationService.create(n.targetUserId, {
+            title: n.title,
+            message: n.message,
+            type: n.type,
+            relatedId: n.relatedId,
+          });
+        } catch (err) {
+          console.error('Failed to create split creation notification:', err);
+        }
       }
 
       const populated = await Split.findById(split._id)
@@ -390,7 +384,8 @@ export const splitService = {
         }], useTransaction ? { session: dbSession } : {});
       }
 
-      // Create receiver transactions if registered
+      // Prepare notifications to receivers
+      const notificationsToCreate: { targetUserId: string; title: string; message: string; type: 'Split Created' | 'Split Paid' | 'Split Reminder'; relatedId: string }[] = [];
       const payerName = payerUser ? payerUser.name : payerSplitUser.name;
       for (const m of members) {
         if (m.userId.toString() === merged.paidBy) continue;
@@ -400,27 +395,8 @@ export const splitService = {
 
         const subUser = await User.findOne({ email: subSplitUser.email.toLowerCase() }).session(useTransaction ? dbSession : null);
         if (subUser) {
-          const cat = await getOrCreateSplitCategory(subUser._id, useTransaction ? dbSession : undefined);
-          const txRecordId = await generateRecordId('INC');
-          await Transaction.create([{
-            recordId: txRecordId,
-            userId: subUser._id,
-            title: merged.title,
-            amount: m.shareAmount,
-            type: 'income',
-            category: cat._id,
-            date: new Date(),
-            note: `Owed to ${payerName} for split: ${merged.title} (Updated)`,
-            splitId: existing._id,
-            splitRecordId: existing.recordId,
-            splitMembersCount: members.length,
-            createdFrom: 'Split',
-            createdBy: new Types.ObjectId(userId),
-            transactionType: 'Split Income',
-            status: m.paid ? 'Paid' : 'Pending',
-          }], useTransaction ? { session: dbSession } : {});
-          // Send notification about update
-          await notificationService.create(subUser._id.toString(), {
+          notificationsToCreate.push({
+            targetUserId: subUser._id.toString(),
             title: `Split "${merged.title}" updated`,
             message: `Your share is now ₹${m.shareAmount}`,
             type: 'Split Created',
@@ -438,6 +414,20 @@ export const splitService = {
 
       if (useTransaction) {
         await dbSession.commitTransaction();
+      }
+
+      // Create notifications after transaction commits
+      for (const n of notificationsToCreate) {
+        try {
+          await notificationService.create(n.targetUserId, {
+            title: n.title,
+            message: n.message,
+            type: n.type,
+            relatedId: n.relatedId,
+          });
+        } catch (err) {
+          console.error('Failed to create split update notification:', err);
+        }
       }
 
       return existing.populate(['paidBy', 'members.userId']);
@@ -538,11 +528,16 @@ export const splitService = {
       const payerSplitUser = await SplitUser.findById(payerId).session(useTransaction ? dbSession : null);
       const targetSplitUser = await SplitUser.findById(memberId).session(useTransaction ? dbSession : null);
 
+      const notificationsToCreate: { targetUserId: string; title: string; message: string; type: 'Split Created' | 'Split Paid' | 'Split Reminder'; relatedId: string }[] = [];
+
       if (payerSplitUser && targetSplitUser) {
-        // Send Notification to Creator
+        const payerUser = await User.findOne({ email: payerSplitUser.email.toLowerCase() }).session(useTransaction ? dbSession : null);
+
+        // Prepare Notification to Creator
         const creatorUser = await User.findById(split.userId).session(useTransaction ? dbSession : null);
         if (creatorUser) {
-          await notificationService.create(creatorUser._id.toString(), {
+          notificationsToCreate.push({
+            targetUserId: creatorUser._id.toString(),
             title: `Split Paid by ${targetSplitUser.name}`,
             message: `${targetSplitUser.name} paid their share of ₹${member.shareAmount} for "${split.title}"`,
             type: 'Split Paid',
@@ -551,15 +546,17 @@ export const splitService = {
         }
 
         // Also notify the payer (the person who paid the bill) if different from creator
-        const payerUser = await User.findOne({ email: payerSplitUser.email.toLowerCase() }).session(useTransaction ? dbSession : null);
         if (payerUser && payerUser._id.toString() !== split.userId.toString()) {
-          await notificationService.create(payerUser._id.toString(), {
+          notificationsToCreate.push({
+            targetUserId: payerUser._id.toString(),
             title: `Split Paid by ${targetSplitUser.name}`,
             message: `${targetSplitUser.name} paid their share of ₹${member.shareAmount} for "${split.title}"`,
             type: 'Split Paid',
             relatedId: split._id.toString(),
           });
-        }        // Create Settlement Transactions:
+        }
+
+        // Create Settlement Transactions:
         // A. Payer (Payer receives Income share)
         if (payerUser) {
           const cat = await getOrCreateSplitCategory(payerUser._id, useTransaction ? dbSession : undefined);
@@ -605,11 +602,6 @@ export const splitService = {
             transactionType: 'Split Settlement',
             status: 'Paid',
           }], useTransaction ? { session: dbSession } : {});
-          // Also mark the original pending Split Income transaction as Paid
-          await Transaction.updateOne(
-            { splitId: split._id, userId: targetUser._id, transactionType: 'Split Income' },
-            { $set: { status: 'Paid' } }
-          ).session(useTransaction ? dbSession : null);
         }
       }
 
@@ -622,6 +614,20 @@ export const splitService = {
 
       if (useTransaction) {
         await dbSession.commitTransaction();
+      }
+
+      // Create notifications after transaction commits
+      for (const n of notificationsToCreate) {
+        try {
+          await notificationService.create(n.targetUserId, {
+            title: n.title,
+            message: n.message,
+            type: n.type,
+            relatedId: n.relatedId,
+          });
+        } catch (err) {
+          console.error('Failed to create split paid notification:', err);
+        }
       }
 
       return split.populate(['paidBy', 'members.userId']);

@@ -1,6 +1,8 @@
 import { withAuth } from '@/middlewares/with-auth';
 import { notificationService } from '@/services/notification.service';
 
+export const dynamic = 'force-dynamic';
+
 export const GET = withAuth(async (req, user) => {
   let cleanup: () => void = () => {};
 
@@ -21,8 +23,11 @@ export const GET = withAuth(async (req, user) => {
   return new Response(stream, {
     headers: {
       'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache, no-transform',
+      'Cache-Control': 'no-cache, no-transform, no-store, must-revalidate',
+      'Pragma': 'no-cache',
+      'Expires': '0',
       'Connection': 'keep-alive',
+      'X-Accel-Buffering': 'no',
     },
   });
 });

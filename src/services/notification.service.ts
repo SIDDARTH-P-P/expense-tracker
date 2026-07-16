@@ -10,10 +10,7 @@ const globalForNotifications = global as unknown as {
 };
 
 export const sseClients = globalForNotifications.sseClients || new Map<string, Set<SSEController>>();
-
-if (process.env.NODE_ENV !== 'production') {
-  globalForNotifications.sseClients = sseClients;
-}
+globalForNotifications.sseClients = sseClients;
 
 function sendSSEMessage(controller: SSEController, event: string, data: any) {
   try {
@@ -138,7 +135,7 @@ export const notificationService = {
 if (!(global as any).pingIntervalStarted) {
   (global as any).pingIntervalStarted = true;
   setInterval(() => {
-    sseClients.forEach((clients) => {
+    sseClients.forEach((clients, userId) => {
       clients.forEach((controller) => {
         try {
           controller.enqueue(new TextEncoder().encode(': keepalive\n\n'));
@@ -146,6 +143,9 @@ if (!(global as any).pingIntervalStarted) {
           clients.delete(controller);
         }
       });
+      if (clients.size === 0) {
+        sseClients.delete(userId);
+      }
     });
   }, 20000);
 }
