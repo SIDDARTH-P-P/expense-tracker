@@ -262,7 +262,11 @@ export const splitService = {
       return populated;
     } catch (err) {
       if (useTransaction) {
-        await dbSession.abortTransaction();
+        try {
+          await dbSession.abortTransaction();
+        } catch (abortErr) {
+          console.error('Failed to abort transaction in create:', abortErr);
+        }
       } else {
         // Manual Rollback Strategy
         for (const doc of createdDocs) {
@@ -430,10 +434,14 @@ export const splitService = {
         }
       }
 
-      return existing.populate(['paidBy', 'members.userId']);
+      return Split.findById(existing._id).populate(['paidBy', 'members.userId']);
     } catch (err) {
       if (useTransaction) {
-        await dbSession.abortTransaction();
+        try {
+          await dbSession.abortTransaction();
+        } catch (abortErr) {
+          console.error('Failed to abort transaction in update:', abortErr);
+        }
       }
       throw err;
     } finally {
@@ -475,7 +483,7 @@ export const splitService = {
   },
 
   async markPaid(userId: string, splitId: string, memberId: string) {
-    const split = await Split.findOne({ _id: splitId }).populate('paidBy').populate('members.userId');
+    const split = await Split.findOne({ _id: splitId });
     if (!split || split.deleted) throw new SplitError('Split not found.', 404);
 
     const creatorSU = await this.ensureCreatorSplitUser(split.userId.toString());
@@ -630,10 +638,14 @@ export const splitService = {
         }
       }
 
-      return split.populate(['paidBy', 'members.userId']);
+      return Split.findById(split._id).populate(['paidBy', 'members.userId']);
     } catch (err) {
       if (useTransaction) {
-        await dbSession.abortTransaction();
+        try {
+          await dbSession.abortTransaction();
+        } catch (abortErr) {
+          console.error('Failed to abort transaction:', abortErr);
+        }
       }
       throw err;
     } finally {
@@ -645,9 +657,9 @@ export const splitService = {
     const existing = await Split.findOne({ _id: id, userId });
     if (!existing || existing.deleted) throw new SplitError('Split not found.', 404);
 
-    // Prevent deletion of completed settlements
+    // Prevent closing of already completed settlements
     if (existing.status === 'Completed') {
-      throw new SplitError('Cannot delete a completed split settlement.', 400);
+      throw new SplitError('Split is already completed/closed.', 400);
     }
 
     const dbSession = await mongoose.startSession();
@@ -659,28 +671,33 @@ export const splitService = {
     }
 
     try {
-      // Soft Delete the split
-      existing.deleted = true;
+      // Mark split as Completed (Close it)
+      existing.status = 'Completed';
       await existing.save(useTransaction ? { session: dbSession } : {});
-
-      // Delete/Cleanup original transactions associated with this split if not settled
-      await Transaction.deleteMany({ splitId: existing._id }).session(useTransaction ? dbSession : null);
 
       // Log Audit History
       await Audit.create([{
         userId: new Types.ObjectId(userId),
-        action: 'Split Deleted',
+        action: 'Split Closed',
         details: { splitId: existing._id, recordId: existing.recordId },
       }], useTransaction ? { session: dbSession } : {});
 
       if (useTransaction) {
-        await dbSession.commitTransaction();
+        try {
+          await dbSession.commitTransaction();
+        } catch (commitErr) {
+          console.error('Failed to commit transaction in remove:', commitErr);
+        }
       }
 
-      return existing;
+      return Split.findById(existing._id).populate(['paidBy', 'members.userId']);
     } catch (err) {
       if (useTransaction) {
-        await dbSession.abortTransaction();
+        try {
+          await dbSession.abortTransaction();
+        } catch (abortErr) {
+          console.error('Failed to abort transaction in remove:', abortErr);
+        }
       }
       throw err;
     } finally {

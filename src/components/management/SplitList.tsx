@@ -260,18 +260,20 @@ export function SplitList({ search }: SplitListProps) {
                     >
                       <FiEye size={14} />
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => toggleActions(split.id)}
-                      className={`flex h-7 w-7 items-center justify-center rounded-lg transition-colors ${
-                        showActions
-                          ? 'bg-surface-2 text-foreground'
-                          : 'text-muted hover:bg-surface-2'
-                      }`}
-                      aria-label="More actions"
-                    >
-                      <FiMoreVertical size={14} />
-                    </button>
+                    {split.status !== 'Completed' && (
+                      <button
+                        type="button"
+                        onClick={() => toggleActions(split.id)}
+                        className={`flex h-7 w-7 items-center justify-center rounded-lg transition-colors ${
+                          showActions
+                            ? 'bg-surface-2 text-foreground'
+                            : 'text-muted hover:bg-surface-2'
+                        }`}
+                        aria-label="More actions"
+                      >
+                        <FiMoreVertical size={14} />
+                      </button>
+                    )}
                   </div>
                 </motion.div>
 
@@ -326,20 +328,7 @@ export function SplitList({ search }: SplitListProps) {
                           }
 
                           if (split.status === 'Completed') {
-                            return (
-                              <div className="px-1 pb-1 pt-2">
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setConfirmClose(split);
-                                    setOpenActionsId(null);
-                                  }}
-                                  className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-expense/10 px-2 py-2.5 text-xs font-semibold text-expense transition hover:bg-expense hover:text-expense-foreground"
-                                >
-                                  <FiXCircle size={12} /> Close Split
-                                </button>
-                              </div>
-                            );
+                            return null;
                           }
 
                           return (
