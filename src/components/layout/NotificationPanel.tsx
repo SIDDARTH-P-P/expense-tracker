@@ -92,8 +92,8 @@ export function NotificationPanel({
 }: NotificationPanelProps) {
   return (
     <BottomSheet isOpen={isOpen} onClose={onClose} title="Notifications" showHeader={false}>
-      {/* Custom header with mark all read */}
-      <div className="mb-4">
+      {/* Custom header with mark all read (Fixed / Shrink-0) */}
+      <div className="mb-4 shrink-0">
         <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-border sm:hidden" />
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -126,24 +126,24 @@ export function NotificationPanel({
         </div>
       </div>
 
-      {/* Notification list */}
-      {isLoading ? (
-        <div className="flex flex-col gap-3">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div
-              key={i}
-              className="h-20 animate-pulse rounded-2xl bg-surface-2"
-            />
-          ))}
-        </div>
-      ) : notifications.length === 0 ? (
-        <EmptyState
-          icon={FiBell}
-          title="No Notifications"
-          description="You're all caught up! New notifications will appear here."
-        />
-      ) : (
-        <div className="flex flex-col gap-2">
+      {/* Notification list container (Scrollable min-h-0 flex-1) */}
+      <div className="flex-1 min-h-0 overflow-y-auto pr-1 pb-4 flex flex-col gap-2 scrollbar-thin">
+        {isLoading ? (
+          <div className="flex flex-col gap-3">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div
+                key={i}
+                className="h-20 animate-pulse rounded-2xl bg-surface-2 shrink-0"
+              />
+            ))}
+          </div>
+        ) : notifications.length === 0 ? (
+          <EmptyState
+            icon={FiBell}
+            title="No Notifications"
+            description="You're all caught up! New notifications will appear here."
+          />
+        ) : (
           <AnimatePresence initial={false}>
             {notifications.map((notification, index) => (
               <motion.button
@@ -158,7 +158,7 @@ export function NotificationPanel({
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: Math.min(index * 0.03, 0.15) }}
                 className={cn(
-                  'relative flex items-start gap-3 rounded-2xl border p-3.5 text-left transition-all',
+                  'relative flex items-start gap-3 rounded-2xl border p-3.5 text-left transition-all shrink-0',
                   notification.read
                     ? 'border-border bg-surface opacity-60 hover:opacity-80'
                     : 'border-primary/20 bg-primary/[0.03] shadow-soft hover:bg-primary/[0.06]'
@@ -204,8 +204,8 @@ export function NotificationPanel({
               </motion.button>
             ))}
           </AnimatePresence>
-        </div>
-      )}
+        )}
+      </div>
     </BottomSheet>
   );
 }

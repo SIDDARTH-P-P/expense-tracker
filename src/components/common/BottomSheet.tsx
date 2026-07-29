@@ -49,14 +49,14 @@ export function BottomSheet({ isOpen, onClose, title, children, className, showH
             exit={{ y: '100%', opacity: 0.6 }}
             transition={{ type: 'spring', damping: 30, stiffness: 300 }}
             className={cn(
-              'fixed inset-x-0 bottom-0 z-50 max-h-[92vh] overflow-hidden rounded-t-3xl border-t border-border bg-surface p-6 shadow-soft flex flex-col sm:inset-x-auto sm:left-1/2 sm:bottom-auto sm:top-1/2 sm:w-full sm:max-w-md sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-3xl sm:border',
+              'fixed inset-x-0 bottom-0 z-50 h-[90vh] max-h-[96vh] sm:h-[750px] sm:max-h-[90vh] overflow-hidden rounded-t-3xl border-t border-border bg-surface p-6 shadow-soft flex flex-col sm:inset-x-auto sm:left-1/2 sm:bottom-auto sm:top-1/2 sm:w-full sm:max-w-md sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-3xl sm:border',
               className
             )}
           >
             {showHeader && (
-              <>
+              <div className="shrink-0 mb-4">
                 <div className="mx-auto mb-4 h-1.5 w-10 rounded-full bg-border sm:hidden" />
-                <div className="mb-5 flex items-center justify-between">
+                <div className="flex items-center justify-between">
                   <h2 className="text-lg font-display font-semibold">{title}</h2>
                   <button
                     onClick={onClose}
@@ -66,9 +66,9 @@ export function BottomSheet({ isOpen, onClose, title, children, className, showH
                     <FiX />
                   </button>
                 </div>
-              </>
+              </div>
             )}
-            <div className={cn('flex min-h-0 flex-1 flex-col overflow-y-auto pb-4', !showHeader && 'overflow-hidden pb-0')}>
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
               {children}
             </div>
           </motion.div>
