@@ -1,9 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { FiSearch, FiX, FiSliders } from 'react-icons/fi';
-import { useCategories } from '@/hooks/useCategories';
-import { DateFilterDropdown } from '@/components/common/DateFilterDropdown';
+import { FiSearch, FiX, FiSliders, FiDownload } from 'react-icons/fi';
 import { FilterSortModal } from '@/components/transactions/FilterSortModal';
 import type { TransactionFilters } from '@/hooks/useTransactions';
 import { cn } from '@/lib/utils/cn';
@@ -12,17 +10,16 @@ interface FilterBarProps {
   filters: TransactionFilters;
   onChange: (filters: TransactionFilters) => void;
   totalRecords?: number;
+  onOpenExport?: () => void;
 }
 
-const TYPE_FILTERS = [
-  { value: '', label: 'All' },
-  { value: 'income', label: '💰 Income' },
-  { value: 'expense', label: '💸 Expense' },
-];
-
-export function FilterBar({ filters, onChange, totalRecords = 0 }: FilterBarProps) {
+export function FilterBar({
+  filters,
+  onChange,
+  totalRecords = 0,
+  onOpenExport,
+}: FilterBarProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const { data: categories = [] } = useCategories();
 
   // Active filters count calculation
   const currentSortKey = `${filters.sortBy ?? 'date'}-${filters.sortOrder ?? 'desc'}`;
@@ -57,9 +54,9 @@ export function FilterBar({ filters, onChange, totalRecords = 0 }: FilterBarProp
         )}
       </div>
 
-      {/* Filter chips — All Chips Uniform Height (h-9) */}
+      {/* Action Controls Row: Filter & Sort button -> Download Report button */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-        {/* Filter & Sort Button (Matching Image 2 & Image 3 trigger) */}
+        {/* Filter & Sort Trigger Button */}
         <button
           type="button"
           onClick={() => setIsModalOpen(true)}
@@ -70,7 +67,7 @@ export function FilterBar({ filters, onChange, totalRecords = 0 }: FilterBarProp
               : 'border-border bg-surface text-foreground hover:bg-surface-2'
           )}
         >
-          <FiSliders size={13} className={cn(activeCount > 0 ? 'text-emerald-500' : 'text-muted')} />
+          <FiSliders size={14} className={cn(activeCount > 0 ? 'text-emerald-500' : 'text-muted')} />
           <span>Filter & Sort</span>
           {activeCount > 0 && (
             <span className="flex items-center justify-center w-4 h-4 rounded-full bg-emerald-500 text-[10px] text-white font-bold ml-0.5">
@@ -79,72 +76,25 @@ export function FilterBar({ filters, onChange, totalRecords = 0 }: FilterBarProp
           )}
         </button>
 
-        {/* Date Filter Dropdown */}
-        <DateFilterDropdown />
-
-        {/* Divider */}
-        <div className="h-6 w-px bg-border shrink-0" />
-
-        {/* Type filter pills */}
-        <div className="flex shrink-0 items-center h-9 rounded-2xl border border-border bg-surface p-1 gap-0.5 shadow-soft">
-          {TYPE_FILTERS.map((f) => (
-            <button
-              key={f.value}
-              onClick={() => onChange({ ...filters, type: (f.value || undefined) as never, page: 1 })}
-              className={cn(
-                'h-full inline-flex items-center justify-center rounded-xl px-3 text-xs font-semibold whitespace-nowrap transition-all duration-200',
-                (filters.type ?? '') === f.value
-                  ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'text-muted hover:text-foreground hover:bg-surface-2'
-              )}
-            >
-              {f.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Category filter pills */}
-        {categories.length > 0 && (
-          <>
-            <div className="h-6 w-px bg-border shrink-0" />
-            <div className="flex shrink-0 items-center gap-1.5">
-              <button
-                onClick={() => onChange({ ...filters, category: undefined, page: 1 })}
-                className={cn(
-                  'h-9 inline-flex items-center justify-center rounded-2xl border border-border px-3 text-xs font-semibold whitespace-nowrap transition-all duration-200',
-                  !filters.category
-                    ? 'bg-primary text-primary-foreground border-primary'
-                    : 'bg-surface text-muted hover:text-foreground'
-                )}
-              >
-                All cats
-              </button>
-              {categories.map((c) => (
-                <button
-                  key={c.id}
-                  onClick={() => onChange({ ...filters, category: filters.category === c.id ? undefined : c.id, page: 1 })}
-                  className={cn(
-                    'h-9 inline-flex items-center justify-center rounded-2xl border px-3 text-xs font-semibold whitespace-nowrap transition-all duration-200',
-                    filters.category === c.id
-                      ? 'border-primary bg-primary/10 text-primary'
-                      : 'border-border bg-surface text-muted hover:text-foreground'
-                  )}
-                  style={filters.category === c.id ? { borderColor: c.color, backgroundColor: `${c.color}15`, color: c.color } : {}}
-                >
-                  {c.name}
-                </button>
-              ))}
-            </div>
-          </>
+        {/* Download Report Button — Placed right AFTER Filter & Sort */}
+        {onOpenExport && (
+          <button
+            type="button"
+            onClick={onOpenExport}
+            className="inline-flex items-center justify-center gap-2 h-9 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold px-3.5 text-xs whitespace-nowrap transition-all duration-200 hover:bg-emerald-500/20 active:scale-95 shadow-soft shrink-0"
+          >
+            <FiDownload size={14} className="text-emerald-500" />
+            <span>Download Report</span>
+          </button>
         )}
 
-        {/* Clear all */}
+        {/* Clear Active Filters chip */}
         {hasActiveFilters && (
           <button
             onClick={() => onChange({ page: 1, pageSize: filters.pageSize })}
-            className="shrink-0 h-9 inline-flex items-center justify-center gap-1 rounded-2xl border border-expense/30 bg-expense/8 px-3 text-xs font-semibold text-expense whitespace-nowrap"
+            className="shrink-0 h-9 inline-flex items-center justify-center gap-1.5 rounded-2xl border border-expense/30 bg-expense/8 px-3 text-xs font-semibold text-expense whitespace-nowrap hover:bg-expense/15 transition-all"
           >
-            <FiX size={11} /> Clear
+            <FiX size={12} /> Clear
           </button>
         )}
       </div>

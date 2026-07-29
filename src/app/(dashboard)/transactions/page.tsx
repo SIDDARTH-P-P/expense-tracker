@@ -1,14 +1,14 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { FiDownload, FiList, FiBook } from 'react-icons/fi';
+import { FiList, FiBook } from 'react-icons/fi';
 import { useInfiniteTransactions } from '@/hooks/useTransactions';
 import { useCurrentUser } from '@/hooks/useAuth';
 import { useDebounce } from '@/hooks/useDebounce';
 import { FilterBar } from '@/components/transactions/FilterBar';
 import { TransactionList } from '@/components/transactions/TransactionList';
 import { CashBookView } from '@/components/transactions/CashBookView';
-import { Button } from '@/components/common/Button';
+import { ExportReportModal } from '@/components/transactions/ExportReportModal';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useUIStore } from '@/store/ui.store';
 import type { TransactionFilters } from '@/hooks/useTransactions';
@@ -20,6 +20,8 @@ export default function TransactionsPage() {
   const { data: user } = useCurrentUser();
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [filters, setFilters] = useState<Omit<TransactionFilters, 'page'>>({});
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+
   const debouncedSearch = useDebounce(filters.search, 350);
 
   // Get date range filter state from Zustand
@@ -68,38 +70,14 @@ export default function TransactionsPage() {
     refetch: refetchList,
   } = useInfiniteTransactions(activeFilters);
 
-  // All-at-once for cash book view
-  const { data: cashbookData, isLoading: cashbookLoading } = useTransactions(
+  // All-at-once for cash book view or export report
+  const { data: cashbookData } = useTransactions(
     { ...activeFilters, page: 1, pageSize: 1000 },
-    { enabled: viewMode === 'cashbook' }
+    { enabled: viewMode === 'cashbook' || isExportModalOpen }
   );
 
   const totalCount = infiniteData?.pages[0]?.total ?? 0;
-
-  function exportCSV() {
-    const items = infiniteData?.pages.flatMap((p) => p.items) ?? [];
-    if (!items.length) return;
-    const rows = [
-      ['Title', 'Amount', 'Type', 'Category', 'Date', 'Payment Method', 'Note'],
-      ...items.map((t) => [
-        t.title,
-        String(t.amount),
-        t.type,
-        typeof t.category === 'string' ? t.category : t.category.name,
-        new Date(t.date).toLocaleDateString(),
-        t.paymentMethod,
-        t.note ?? '',
-      ]),
-    ];
-    const csv = rows.map((r) => r.map((v) => `"${v}"`).join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `ledgerly-transactions-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
+  const allFilteredItems = cashbookData?.items ?? infiniteData?.pages.flatMap((p) => p.items) ?? [];
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -140,35 +118,25 @@ export default function TransactionsPage() {
                 <FiBook size={13} /> Book
               </button>
             </div>
-
-            <Button variant="outline" size="sm" onClick={exportCSV} className="hidden sm:flex">
-              <FiDownload size={13} /> CSV
-            </Button>
           </div>
         </div>
-
 
         {/* Filters */}
         <FilterBar
           filters={filters}
           onChange={(f) => setFilters(f)}
           totalRecords={totalCount}
+          onOpenExport={() => setIsExportModalOpen(true)}
         />
       </div>
 
       {/* Content */}
       <div className="pt-3">
         {viewMode === 'cashbook' ? (
-          cashbookLoading ? (
-            <div className="flex items-center justify-center py-16">
-              <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-            </div>
-          ) : (
-            <CashBookView
-              transactions={cashbookData?.items ?? []}
-              currency={user?.currency ?? 'USD'}
-            />
-          )
+          <CashBookView
+            transactions={allFilteredItems}
+            currency={user?.currency ?? 'USD'}
+          />
         ) : (
           <TransactionList
             data={infiniteData}
@@ -182,6 +150,14 @@ export default function TransactionsPage() {
           />
         )}
       </div>
+
+      {/* Report Download Modal */}
+      <ExportReportModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        transactions={allFilteredItems}
+        activeFilters={activeFilters}
+      />
     </div>
   );
 }
