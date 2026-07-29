@@ -26,10 +26,18 @@ export default function TransactionsPage() {
   const dateFilterType = useUIStore((s) => s.dateFilterType);
   const selectedMonth = useUIStore((s) => s.selectedMonth);
   const selectedYear = useUIStore((s) => s.selectedYear);
+  const customStartDate = useUIStore((s) => s.customStartDate);
+  const customEndDate = useUIStore((s) => s.customEndDate);
 
   // Compute from & to date strings based on filters
   const dateParams = useMemo(() => {
+    if (filters.from || filters.to) {
+      return { from: filters.from, to: filters.to };
+    }
     if (dateFilterType === 'all') return { from: undefined, to: undefined };
+    if (dateFilterType === 'custom') {
+      return { from: customStartDate ?? undefined, to: customEndDate ?? undefined };
+    }
     if (dateFilterType === 'month') {
       const from = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-01`;
       const lastDay = new Date(selectedYear, selectedMonth + 1, 0).getDate();
@@ -41,7 +49,7 @@ export default function TransactionsPage() {
       from: `${selectedYear}-01-01`,
       to: `${selectedYear}-12-31`,
     };
-  }, [dateFilterType, selectedMonth, selectedYear]);
+  }, [dateFilterType, selectedMonth, selectedYear, customStartDate, customEndDate, filters.from, filters.to]);
 
   const activeFilters = { 
     ...filters, 
@@ -144,6 +152,7 @@ export default function TransactionsPage() {
         <FilterBar
           filters={filters}
           onChange={(f) => setFilters(f)}
+          totalRecords={totalCount}
         />
       </div>
 

@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { FiCalendar, FiChevronDown } from 'react-icons/fi';
 import { useUIStore } from '@/store/ui.store';
+import { WheelDatePickerModal } from '@/components/common/WheelDatePickerModal';
 import { cn } from '@/lib/utils/cn';
 import { createPortal } from 'react-dom';
 
@@ -14,15 +15,19 @@ export function DateFilterDropdown() {
   const [isMounted, setIsMounted] = useState(false);
   const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
 
+  const [wheelOpen, setWheelOpen] = useState(false);
+
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
   const dateFilterType = useUIStore((s) => s.dateFilterType);
   const selectedMonth = useUIStore((s) => s.selectedMonth);
   const selectedYear = useUIStore((s) => s.selectedYear);
+  const customStartDate = useUIStore((s) => s.customStartDate);
   const setDateFilterType = useUIStore((s) => s.setDateFilterType);
   const setSelectedMonth = useUIStore((s) => s.setSelectedMonth);
   const setSelectedYear = useUIStore((s) => s.setSelectedYear);
+  const setCustomDateRange = useUIStore((s) => s.setCustomDateRange);
 
   useEffect(() => {
     setIsMounted(true);
@@ -34,7 +39,6 @@ export function DateFilterDropdown() {
       const dropdownWidth = 224;
       let left = rect.left + window.scrollX;
       
-      // If it overflows the right edge of screen, align it to the right edge of the trigger
       if (left + dropdownWidth > window.innerWidth) {
         left = rect.right + window.scrollX - dropdownWidth;
       }
@@ -47,11 +51,9 @@ export function DateFilterDropdown() {
     }
   };
 
-  // Close when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        // Also check if click is inside the portal dropdown card
         const portalEl = document.getElementById('date-filter-portal-content');
         if (portalEl && portalEl.contains(event.target as Node)) {
           return;
@@ -83,6 +85,10 @@ export function DateFilterDropdown() {
     if (dateFilterType === 'year') {
       return `${selectedYear}`;
     }
+    if (dateFilterType === 'custom' && customStartDate) {
+      const d = new Date(customStartDate);
+      return `${d.getDate()} ${MONTH_NAMES[d.getMonth()]}`;
+    }
     return 'All-Time';
   })();
 
@@ -94,9 +100,9 @@ export function DateFilterDropdown() {
         type="button"
         onClick={() => setIsOpen(!isOpen)}
         className={cn(
-          'flex items-center gap-1.5 rounded-2xl border px-3 py-1.5 text-xs font-semibold whitespace-nowrap transition-all duration-200 shadow-soft h-8',
+          'inline-flex items-center justify-center gap-1.5 h-9 rounded-2xl border px-3 text-xs font-semibold whitespace-nowrap transition-all duration-200 shadow-soft shrink-0',
           isOpen || dateFilterType !== 'all'
-            ? 'border-primary bg-primary/10 text-primary'
+            ? 'border-primary bg-primary/10 text-primary font-bold'
             : 'border-border bg-surface text-muted hover:text-foreground hover:bg-surface-2/40'
         )}
       >
@@ -173,9 +179,36 @@ export function DateFilterDropdown() {
               </div>
             </div>
           )}
+
+          {/* iOS Wheel Picker Trigger Button */}
+          <div className="pt-2.5 mt-2.5 border-t border-border">
+            <button
+              type="button"
+              onClick={() => {
+                setIsOpen(false);
+                setWheelOpen(true);
+              }}
+              className="w-full flex items-center justify-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 py-1.5 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 transition-all"
+            >
+              <FiCalendar size={12} />
+              <span>Wheel Date Picker</span>
+            </button>
+          </div>
         </div>,
         document.body
       )}
+
+      {/* Wheel Date Picker Modal */}
+      <WheelDatePickerModal
+        isOpen={wheelOpen}
+        onClose={() => setWheelOpen(false)}
+        title="Select Date"
+        initialDate={customStartDate ? new Date(customStartDate) : new Date()}
+        onSelectDate={(picked) => {
+          const dateStr = picked.toISOString().split('T')[0];
+          setCustomDateRange(dateStr, dateStr);
+        }}
+      />
     </div>
   );
 }

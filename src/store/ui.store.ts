@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 export type ManagementTab = 'category' | 'splitUsers' | 'splits';
 export type AddSheetKind = 'transaction' | 'category' | 'splitUser' | 'split';
-export type DateFilterType = 'all' | 'month' | 'year';
+export type DateFilterType = 'all' | 'month' | 'year' | 'custom';
 
 interface UIState {
   theme: 'light' | 'dark';
@@ -13,6 +13,8 @@ interface UIState {
   dateFilterType: DateFilterType;
   selectedMonth: number; // 0-11
   selectedYear: number;
+  customStartDate: string | null;
+  customEndDate: string | null;
   splitFilterMode: 'all' | 'own';
   setTheme: (theme: 'light' | 'dark') => void;
   toggleTheme: () => void;
@@ -23,6 +25,7 @@ interface UIState {
   setDateFilterType: (type: DateFilterType) => void;
   setSelectedMonth: (month: number) => void;
   setSelectedYear: (year: number) => void;
+  setCustomDateRange: (start: string | null, end: string | null) => void;
   setSplitFilterMode: (mode: 'all' | 'own') => void;
 }
 
@@ -35,6 +38,8 @@ export const useUIStore = create<UIState>((set, get) => ({
   dateFilterType: 'all',
   selectedMonth: new Date().getMonth(),
   selectedYear: new Date().getFullYear(),
+  customStartDate: null,
+  customEndDate: null,
   splitFilterMode: 'all',
   setTheme: (theme) => {
     set({ theme });
@@ -56,5 +61,6 @@ export const useUIStore = create<UIState>((set, get) => ({
   setDateFilterType: (type) => set({ dateFilterType: type }),
   setSelectedMonth: (month) => set({ selectedMonth: month }),
   setSelectedYear: (year) => set({ selectedYear: year }),
+  setCustomDateRange: (start, end) => set({ dateFilterType: 'custom', customStartDate: start, customEndDate: end }),
   setSplitFilterMode: (mode) => set({ splitFilterMode: mode }),
 }));
