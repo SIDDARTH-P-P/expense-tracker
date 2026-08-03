@@ -28,9 +28,11 @@ import { formatCurrency } from '@/lib/utils/format';
 import { useUIStore } from '@/store/ui.store';
 import { cn } from '@/lib/utils/cn';
 import type { Split, SplitUser } from '@/types';
+import type { SplitFilters } from '@/components/management/SplitExportReportModal';
 
 interface SplitListProps {
   search?: string;
+  filters?: SplitFilters;
 }
 
 function splitUserName(value: SplitUser | string) {
@@ -45,10 +47,16 @@ function getSplitUserEmail(value: SplitUser | string) {
   return typeof value === 'string' ? '' : value.email;
 }
 
-export function SplitList({ search }: SplitListProps) {
+export function SplitList({ search = '', filters }: SplitListProps) {
   const filterMode = useUIStore((s) => s.splitFilterMode);
+  const dateFilterType = useUIStore((s) => s.dateFilterType);
+  const selectedMonth = useUIStore((s) => s.selectedMonth);
+  const selectedYear = useUIStore((s) => s.selectedYear);
+  const customStartDate = useUIStore((s) => s.customStartDate);
+  const customEndDate = useUIStore((s) => s.customEndDate);
+
   const { data: user } = useCurrentUser();
-  const { data: splits = [], isLoading } = useSplits(search);
+  const { data: splits = [], isLoading } = useSplits(filters?.search ?? search);
   const { data: splitUsers = [] } = useSplitUsers();
   const deleteSplit = useDeleteSplit();
   const markSplitPaid = useMarkSplitPaid();
@@ -63,24 +71,91 @@ export function SplitList({ search }: SplitListProps) {
   const [confirmPaidSelf, setConfirmPaidSelf] = useState<{ split: Split; member: any } | null>(null);
   const currency = user?.currency ?? 'INR';
 
+  // Compute date range params
+  const dateParams = useMemo(() => {
+    if (filters?.from || filters?.to) {
+      return { from: filters.from, to: filters.to };
+    }
+    if (dateFilterType === 'all') return { from: undefined, to: undefined };
+    if (dateFilterType === 'custom') {
+      return { from: customStartDate ?? undefined, to: customEndDate ?? undefined };
+    }
+    if (dateFilterType === 'month') {
+      const from = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-01`;
+      const lastDay = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+      const to = `${selectedYear}-${String(selectedMonth + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+      return { from, to };
+    }
+    return {
+      from: `${selectedYear}-01-01`,
+      to: `${selectedYear}-12-31`,
+    };
+  }, [dateFilterType, selectedMonth, selectedYear, customStartDate, customEndDate, filters?.from, filters?.to]);
 
-  // Filter splits based on mode
+  // Filter & sort splits based on filters prop & ui store
   const filteredSplits = useMemo(() => {
     const myEmail = user?.email?.toLowerCase();
     if (!myEmail) return [];
-    return splits.filter((split) => {
+
+    const activeScope = filters?.scope ?? filterMode;
+    const activeStatus = filters?.status ?? 'All';
+
+    let result = splits.filter((split) => {
       const isPayer = getSplitUserEmail(split.paidBy).toLowerCase() === myEmail;
-      const isMember = split.members.some(
+      const myMember = split.members.find(
         (m) => getSplitUserEmail(m.userId).toLowerCase() === myEmail
       );
-      // Own mode: show ONLY splits paid by me (i put split)
-      if (filterMode === 'own') {
-        return isPayer;
+      const isMember = !!myMember;
+
+      // 1. Scope Filter
+      if (activeScope === 'own' && !isPayer) return false;
+      if (activeScope === 'owe' && (isPayer || !myMember || myMember.paid)) return false;
+      if (activeScope === 'owed') {
+        if (!isPayer) return false;
+        const hasPendingOtherMembers = split.members.some(
+          (m) => getSplitUserEmail(m.userId).toLowerCase() !== myEmail && !m.paid
+        );
+        if (!hasPendingOtherMembers) return false;
       }
-      // All mode: show splits paid by me (i put split) AND splits against me (isMember)
-      return isPayer || isMember;
+      if (activeScope === 'all' && !isPayer && !isMember) return false;
+
+      // 2. Status Filter
+      if (activeStatus !== 'All' && split.status !== activeStatus) return false;
+
+      // 3. Member Filter
+      if (filters?.memberId) {
+        const isTargetMember = split.members.some(
+          (m) => getSplitUserId(m.userId) === filters.memberId
+        );
+        const isTargetPayer = getSplitUserId(split.paidBy) === filters.memberId;
+        if (!isTargetMember && !isTargetPayer) return false;
+      }
+
+      // 4. Date Range Filter
+      if (dateParams.from || dateParams.to) {
+        const splitDateStr = new Date(split.createdAt).toISOString().split('T')[0];
+        if (dateParams.from && splitDateStr < dateParams.from) return false;
+        if (dateParams.to && splitDateStr > dateParams.to) return false;
+      }
+
+      return true;
     });
-  }, [splits, filterMode, user]);
+
+    // 5. Sorting
+    const sortBy = filters?.sortBy ?? 'date';
+    const sortOrder = filters?.sortOrder ?? 'desc';
+
+    result.sort((a, b) => {
+      if (sortBy === 'amount') {
+        return sortOrder === 'asc' ? a.amount - b.amount : b.amount - a.amount;
+      }
+      const timeA = new Date(a.createdAt).getTime();
+      const timeB = new Date(b.createdAt).getTime();
+      return sortOrder === 'asc' ? timeA - timeB : timeB - timeA;
+    });
+
+    return result;
+  }, [splits, filterMode, filters, dateParams, user]);
 
   // Google Pay-style amount summary
   const summary = useMemo(() => {
@@ -181,29 +256,24 @@ export function SplitList({ search }: SplitListProps) {
 
                   {/* Content */}
                   <div className="min-w-0 flex-1">
-                    <div className="flex min-w-0 items-center justify-between gap-3">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <p className="truncate text-sm font-semibold">
-                          {split.title}
-                        </p>
-                        <span
-                          className={cn(
-                            'rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide shrink-0',
-                            split.status === 'Completed'
-                              ? 'bg-income/15 text-income'
-                              : split.status === 'Partially Paid'
-                              ? 'bg-primary/15 text-primary'
-                              : 'bg-surface-2 text-muted border border-border'
-                          )}
-                        >
-                          {split.status}
-                        </span>
-                      </div>
-                      <p className="shrink-0 font-mono text-sm font-bold text-primary">
-                        {formatCurrency(split.amount, currency)}
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <p className="truncate text-sm font-semibold">
+                        {split.title}
                       </p>
+                      <span
+                        className={cn(
+                          'rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide shrink-0',
+                          split.status === 'Completed'
+                            ? 'bg-income/15 text-income'
+                            : split.status === 'Partially Paid'
+                            ? 'bg-primary/15 text-primary'
+                            : 'bg-surface-2 text-muted border border-border'
+                        )}
+                      >
+                        {split.status}
+                      </span>
                     </div>
-                    <div className="mt-1 flex flex-wrap gap-x-2 gap-y-0.5 text-xs text-muted">
+                    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted">
                       <span>
                         {iAmPayer ? 'You paid' : `Paid by ${splitUserName(split.paidBy)}`}
                       </span>
@@ -213,67 +283,71 @@ export function SplitList({ search }: SplitListProps) {
                       <span>
                         {split.splitMode === 'equal' ? 'Equal' : 'Custom'}
                       </span>
+                      {myMember && !iAmPayer && (
+                        <>
+                          <span>·</span>
+                          <span
+                            className={cn(
+                              'font-semibold',
+                              myMember.paid ? 'text-income' : 'text-expense'
+                            )}
+                          >
+                            {myMember.paid
+                              ? '✓ You paid'
+                              : `You owe ${formatCurrency(myMember.shareAmount, currency)}`}
+                          </span>
+                        </>
+                      )}
+                      {iAmPayer && split.status !== 'Completed' && (
+                        <>
+                          <span>·</span>
+                          <span className="font-semibold text-income">
+                            {
+                              split.members.filter(
+                                (m) =>
+                                  getSplitUserEmail(m.userId).toLowerCase() !== payerEmail && !m.paid
+                              ).length
+                            }{' '}
+                            pending
+                          </span>
+                        </>
+                      )}
                     </div>
-
-                    {/* My share line (Google Pay style) */}
-                    {myMember && !iAmPayer && (
-                      <div className="mt-1 flex items-center gap-1.5">
-                        <span
-                          className={cn(
-                            'text-xs font-semibold',
-                            myMember.paid ? 'text-income' : 'text-expense'
-                          )}
-                        >
-                          {myMember.paid
-                            ? '✓ You paid'
-                            : `You owe ${formatCurrency(myMember.shareAmount, currency)}`}
-                        </span>
-                      </div>
-                    )}
-
-                    {iAmPayer && split.status !== 'Completed' && (
-                      <div className="mt-1">
-                        <span className="text-xs font-semibold text-income">
-                          {
-                            split.members.filter(
-                              (m) =>
-                                getSplitUserEmail(m.userId).toLowerCase() !== payerEmail && !m.paid
-                            ).length
-                          }{' '}
-                          pending
-                        </span>
-                      </div>
-                    )}
 
                     <p className="mt-0.5 font-mono text-[11px] text-primary">
                       {split.recordId}
                     </p>
                   </div>
 
-                  {/* Right: view + three-dot */}
-                  <div className="flex shrink-0 items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => setViewing(split)}
-                      className="flex h-7 w-7 items-center justify-center rounded-lg text-muted transition-colors hover:bg-surface-2 hover:text-foreground"
-                      aria-label="View"
-                    >
-                      <FiEye size={14} />
-                    </button>
-                    {split.status !== 'Completed' && (
+                  {/* Right Section: Amount (top right) + Action buttons (bottom right) */}
+                  <div className="flex shrink-0 flex-col items-end justify-between gap-1.5 self-stretch">
+                    <p className="whitespace-nowrap text-right font-mono text-sm font-bold text-primary">
+                      {formatCurrency(split.amount, currency)}
+                    </p>
+                    <div className="flex items-center gap-1">
                       <button
                         type="button"
-                        onClick={() => toggleActions(split.id)}
-                        className={`flex h-7 w-7 items-center justify-center rounded-lg transition-colors ${
-                          showActions
-                            ? 'bg-surface-2 text-foreground'
-                            : 'text-muted hover:bg-surface-2'
-                        }`}
-                        aria-label="More actions"
+                        onClick={() => setViewing(split)}
+                        className="flex h-7 w-7 items-center justify-center rounded-lg text-muted transition-colors hover:bg-surface-2 hover:text-foreground"
+                        aria-label="View"
                       >
-                        <FiMoreVertical size={14} />
+                        <FiEye size={14} />
                       </button>
-                    )}
+                      {split.status !== 'Completed' && (
+                        <button
+                          type="button"
+                          onClick={() => toggleActions(split.id)}
+                          className={`flex h-7 w-7 items-center justify-center rounded-lg transition-colors ${
+                            showActions
+                              ? 'bg-surface-2 text-foreground'
+                              : 'text-muted hover:bg-surface-2'
+                          }`}
+                          aria-label="More actions"
+                        >
+                          <FiMoreVertical size={14} />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </motion.div>
 

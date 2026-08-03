@@ -57,7 +57,9 @@ function getInitialValues(
   };
 }
 
-export function SplitModal({ split, onClose, readOnly, onEdit }: SplitModalProps) {
+export function SplitModal({ split, onClose, readOnly: readOnlyProp, onEdit }: SplitModalProps) {
+  const isCompleted = split?.status === 'Completed';
+  const readOnly = Boolean(readOnlyProp || isCompleted);
   const { data: splitUsers = [], isLoading } = useSplitUsers();
   const { data: currentUser } = useCurrentUser();
   const createSplit = useCreateSplit();
@@ -436,9 +438,17 @@ export function SplitModal({ split, onClose, readOnly, onEdit }: SplitModalProps
                         </span>
                       </p>
                     )}
-                    {isPayer && (
+                    {isPayer ? (
                       <span className="rounded-xl bg-income/10 px-3 py-2 text-xs font-bold text-income">
                         Paid ✓
+                      </span>
+                    ) : member?.paid ? (
+                      <span className="rounded-xl bg-income/10 px-3 py-2 text-xs font-bold text-income">
+                        Paid ✓
+                      </span>
+                    ) : (
+                      <span className="rounded-xl bg-surface-2 px-3 py-2 text-xs font-semibold text-muted">
+                        Pending
                       </span>
                     )}
                   </div>

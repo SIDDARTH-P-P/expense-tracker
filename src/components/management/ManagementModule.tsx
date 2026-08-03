@@ -8,15 +8,28 @@ import { ManagementTabs } from '@/components/management/ManagementTabs';
 import { SplitList } from '@/components/management/SplitList';
 import { SplitUserList } from '@/components/management/SplitUserList';
 import { SplitHeaderSummary } from '@/components/management/SplitHeaderSummary';
+import { SplitFilterSortModal } from '@/components/management/SplitFilterSortModal';
+import type { SplitFilters } from '@/components/management/SplitExportReportModal';
+import { useSplits } from '@/hooks/useManagement';
 import { useDebounce } from '@/hooks/useDebounce';
 import { useUIStore } from '@/store/ui.store';
-
-import { cn } from '@/lib/utils/cn';
 
 export function ManagementModule() {
   const activeTab = useUIStore((s) => s.managementActiveTab);
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search.trim(), 250);
+
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
+
+  const [splitFilters, setSplitFilters] = useState<SplitFilters>({
+    search: '',
+    scope: 'all',
+    status: 'All',
+    sortBy: 'date',
+    sortOrder: 'desc',
+  });
+
+  const { data: splits = [] } = useSplits(splitFilters.search);
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col">
@@ -32,15 +45,45 @@ export function ManagementModule() {
           <ManagementTabs />
         </div>
 
-        {/* Row 3: Search bar & Split Filter Switch */}
-        <div className="flex flex-col gap-1.5">
+        {/* Row 3: Search & Header Summary */}
+        {activeTab === 'splits' ? (
+          <div className="flex flex-col gap-2">
+            <SplitHeaderSummary
+              search={splitFilters.search ?? ''}
+              filters={splitFilters}
+              onOpenFilter={() => setIsFilterModalOpen(true)}
+            />
+
+            {/* Single Search Bar for Splits */}
+            <div className="relative flex-1">
+              <FiSearch size={15} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
+              <input
+                type="search"
+                value={splitFilters.search ?? ''}
+                onChange={(event) => setSplitFilters((prev) => ({ ...prev, search: event.target.value }))}
+                placeholder="Search title, category, split user, or record ID..."
+                className="w-full rounded-2xl border border-border bg-surface py-2.5 pl-10 pr-10 text-sm shadow-soft placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+              {splitFilters.search && (
+                <button
+                  type="button"
+                  onClick={() => setSplitFilters((prev) => ({ ...prev, search: '' }))}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-muted hover:text-foreground"
+                  aria-label="Clear search"
+                >
+                  <FiX size={15} />
+                </button>
+              )}
+            </div>
+          </div>
+        ) : (
           <div className="relative flex-1">
             <FiSearch size={15} className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
             <input
               type="search"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search record ID, name, email, category, or split..."
+              placeholder="Search record ID, name, email, category..."
               className="w-full rounded-2xl border border-border bg-surface py-2.5 pl-10 pr-10 text-sm shadow-soft placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
             />
             {search && (
@@ -54,10 +97,7 @@ export function ManagementModule() {
               </button>
             )}
           </div>
-          {activeTab === 'splits' && (
-            <SplitHeaderSummary search={debouncedSearch} />
-          )}
-        </div>
+        )}
       </div>
 
       <AnimatePresence mode="wait">
@@ -71,9 +111,21 @@ export function ManagementModule() {
         >
           {activeTab === 'category' && <CategoryList search={debouncedSearch} />}
           {activeTab === 'splitUsers' && <SplitUserList search={debouncedSearch} />}
-          {activeTab === 'splits' && <SplitList search={debouncedSearch} />}
+          {activeTab === 'splits' && <SplitList filters={splitFilters} />}
         </motion.div>
       </AnimatePresence>
+
+      {/* Split Filter Sort Modal */}
+      <SplitFilterSortModal
+        isOpen={isFilterModalOpen}
+        onClose={() => setIsFilterModalOpen(false)}
+        filters={splitFilters}
+        onChange={setSplitFilters}
+        totalRecords={splits.length}
+      />
     </div>
   );
 }
+
+
+

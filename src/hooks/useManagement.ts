@@ -132,7 +132,7 @@ export function useDeleteSplit() {
       qc.invalidateQueries({ queryKey: splitsQueryKey(userId) });
       qc.invalidateQueries({ queryKey: ['transactions'] });
       qc.invalidateQueries({ queryKey: ['dashboard', 'summary'] });
-      toast.success('Split deleted.');
+      toast.success('Split closed.');
     },
     onError: (err: ApiClientError) => toast.error(err.message),
   });
