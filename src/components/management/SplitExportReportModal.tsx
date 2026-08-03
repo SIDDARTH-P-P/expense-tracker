@@ -9,7 +9,7 @@ import { cn } from '@/lib/utils/cn';
 export interface SplitFilters {
   search?: string;
   scope?: 'all' | 'own' | 'owe' | 'owed';
-  status?: 'All' | 'Pending' | 'Partially Paid' | 'Completed';
+  status?: 'All' | 'Pending' | 'Partially Paid' | 'Completed' | 'Closed';
   category?: string;
   memberId?: string;
   sortBy?: 'date' | 'amount';

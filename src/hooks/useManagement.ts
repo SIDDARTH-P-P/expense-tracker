@@ -127,7 +127,11 @@ export function useDeleteSplit() {
   const userId = useAuthStore((s) => s.user?.id);
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => apiClient.delete(`/splits/${id}`),
+    mutationFn: (param: string | { id: string; reason?: string }) => {
+      const id = typeof param === 'string' ? param : param.id;
+      const reason = typeof param === 'object' ? param.reason : undefined;
+      return apiClient.delete(`/splits/${id}`, { reason });
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: splitsQueryKey(userId) });
       qc.invalidateQueries({ queryKey: ['transactions'] });

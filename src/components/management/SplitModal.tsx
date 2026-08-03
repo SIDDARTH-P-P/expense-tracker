@@ -58,8 +58,8 @@ function getInitialValues(
 }
 
 export function SplitModal({ split, onClose, readOnly: readOnlyProp, onEdit }: SplitModalProps) {
-  const isCompleted = split?.status === 'Completed';
-  const readOnly = Boolean(readOnlyProp || isCompleted);
+  const isClosed = split?.status === 'Closed' || split?.status === 'Completed';
+  const readOnly = Boolean(readOnlyProp || isClosed);
   const { data: splitUsers = [], isLoading } = useSplitUsers();
   const { data: currentUser } = useCurrentUser();
   const createSplit = useCreateSplit();
@@ -122,6 +122,10 @@ export function SplitModal({ split, onClose, readOnly: readOnlyProp, onEdit }: S
 
   // Google Pay style: auto-calculate equal share
   const equalShare = members.length > 0 ? amount / members.length : 0;
+
+  // Paid vs Pending member count
+  const paidCount = useMemo(() => members.filter((m) => m.paid).length, [members]);
+  const pendingCount = useMemo(() => members.filter((m) => !m.paid).length, [members]);
 
   // Custom mode: running total
   const customTotal = useMemo(
@@ -208,14 +212,42 @@ export function SplitModal({ split, onClose, readOnly: readOnlyProp, onEdit }: S
   return (
     <form onSubmit={handleSubmit(submit)} className="flex h-full min-h-0 flex-col bg-surface text-foreground">
       <div className="flex-1 overflow-y-auto px-4 pb-24 pt-5 sm:px-6 sm:pb-28 sm:pt-6 flex flex-col gap-4">
-      {/* Record ID (edit mode) */}
+      {/* Record ID & Status */}
       {split?.recordId && (
-        <div className="rounded-2xl border border-border bg-surface-2 px-4 py-3">
-          <p className="text-[10px] font-bold uppercase tracking-widest text-muted">
-            Record ID
+        <div className="rounded-2xl border border-border bg-surface-2 px-4 py-3 flex items-center justify-between">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-muted">
+              Record ID
+            </p>
+            <p className="font-mono text-sm font-semibold text-primary">
+              {split.recordId}
+            </p>
+          </div>
+          <span
+            className={cn(
+              'rounded-full px-2.5 py-1 text-xs font-bold uppercase tracking-wide',
+              split.status === 'Closed'
+                ? 'bg-rose-500/15 text-rose-500 border border-rose-500/30'
+                : split.status === 'Completed'
+                ? 'bg-income/15 text-income'
+                : split.status === 'Partially Paid'
+                ? 'bg-primary/15 text-primary'
+                : 'bg-surface-2 text-muted border border-border'
+            )}
+          >
+            {split.status}
+          </span>
+        </div>
+      )}
+
+      {/* Closed Reason Banner */}
+      {split?.status === 'Closed' && (
+        <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-xs">
+          <p className="font-bold text-rose-500 uppercase tracking-wider text-[10px] mb-1">
+            Split Closed
           </p>
-          <p className="font-mono text-sm font-semibold text-primary">
-            {split.recordId}
+          <p className="text-foreground font-medium">
+            {split.closeReason ? `Reason: ${split.closeReason}` : 'This split has been closed.'}
           </p>
         </div>
       )}
@@ -245,9 +277,16 @@ export function SplitModal({ split, onClose, readOnly: readOnlyProp, onEdit }: S
       {/* Google Pay-style Summary Banner */}
       {amount > 0 && members.length > 0 && (
         <div className="rounded-2xl border border-primary/30 bg-primary/5 p-4">
-          <div className="flex items-center gap-2 mb-2">
-            <FiDollarSign className="text-primary" size={16} />
-            <span className="text-sm font-bold text-primary">Split Summary</span>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <FiDollarSign className="text-primary" size={16} />
+              <span className="text-sm font-bold text-primary">Split Summary</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs font-semibold">
+              <span className="text-income">{paidCount} Paid</span>
+              <span className="text-muted">•</span>
+              <span className="text-expense">{pendingCount} Pending</span>
+            </div>
           </div>
           <div className="grid grid-cols-3 gap-2 text-center">
             <div>

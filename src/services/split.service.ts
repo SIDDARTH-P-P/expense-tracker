@@ -289,8 +289,8 @@ export const splitService = {
     const existing = await Split.findOne({ _id: id, userId }).populate('paidBy').populate('members.userId');
     if (!existing || existing.deleted) throw new SplitError('Split not found.', 404);
 
-    if (existing.status === 'Completed') {
-      throw new SplitError('Cannot update a completed split settlement.', 400);
+    if (existing.status === 'Completed' || existing.status === 'Closed') {
+      throw new SplitError('Cannot update a completed or closed split.', 400);
     }
 
     const merged: SplitFormValues = {
@@ -457,8 +457,8 @@ export const splitService = {
     const split = await Split.findOne({ _id: splitId }).populate('paidBy').populate('members.userId');
     if (!split || split.deleted) throw new SplitError('Split not found.', 404);
 
-    const payerEmail = (split.paidBy as any).email?.toLowerCase() || '';
-    const payerName = typeof split.paidBy === 'string' ? 'Someone' : split.paidBy.name;
+    const payerEmail = (split.paidBy as any)?.email?.toLowerCase() || '';
+    const payerName = (split.paidBy as any)?.name || 'Someone';
 
     const userSU = await this.ensureCreatorSplitUser(userId);
     if (!userSU || userSU.email.toLowerCase() !== payerEmail) {
@@ -610,7 +610,7 @@ export const splitService = {
           }], useTransaction ? { session: dbSession } : {});
         }
 
-        // B. Paying Member (Member pays Expense share)
+        // B. Paying Member (Member pays Expense share - creates Expense transaction & reduces Net Cash Balance)
         if (targetUser) {
           const cat = await getOrCreateSplitCategory(targetUser._id, useTransaction ? dbSession : undefined);
           const txRecordId = await generateRecordId('EXP');
@@ -674,13 +674,13 @@ export const splitService = {
     }
   },
 
-  async remove(userId: string, id: string) {
-    const existing = await Split.findOne({ _id: id, userId });
+  async remove(userId: string, id: string, reason?: string) {
+    const existing = await splitRepository.findById(id, userId);
     if (!existing || existing.deleted) throw new SplitError('Split not found.', 404);
 
-    // Prevent closing of already completed settlements
-    if (existing.status === 'Completed') {
-      throw new SplitError('Split is already completed/closed.', 400);
+    // Prevent closing of already closed splits
+    if (existing.status === 'Closed') {
+      throw new SplitError('Split is already closed.', 400);
     }
 
     const dbSession = await mongoose.startSession();
@@ -692,18 +692,82 @@ export const splitService = {
     }
 
     try {
-      // Mark split as Completed (Close it) & mark all members as paid
-      existing.status = 'Completed';
-      existing.members.forEach((m: any) => {
-        m.paid = true;
-      });
+      // Find payer user account
+      const payerSplitUser = existing.paidBy as any;
+      const payerEmail = payerSplitUser?.email?.toLowerCase();
+      const payerUser = payerEmail
+        ? await User.findOne({ email: payerEmail }).session(useTransaction ? dbSession : null)
+        : null;
+
+      // Settle any remaining unpaid member shares on closure
+      for (const member of existing.members) {
+        if (!member.paid) {
+          member.paid = true;
+
+          const targetSplitUser = member.userId as any;
+          const targetEmail = targetSplitUser?.email?.toLowerCase();
+          const targetUser = targetEmail
+            ? await User.findOne({ email: targetEmail }).session(useTransaction ? dbSession : null)
+            : null;
+
+          // A. Payer receives Income settlement for the pending share
+          if (payerUser) {
+            const cat = await getOrCreateSplitCategory(payerUser._id, useTransaction ? dbSession : undefined);
+            const txRecordId = await generateRecordId('INC');
+            await Transaction.create([{
+              recordId: txRecordId,
+              userId: payerUser._id,
+              title: `Settlement: ${existing.title}`,
+              amount: member.shareAmount,
+              type: 'income',
+              category: cat._id,
+              date: new Date(),
+              note: `Settlement (Split Closed: ${reason || 'Closed'}) from ${targetSplitUser?.name || 'Member'}`,
+              splitId: existing._id,
+              splitRecordId: existing.recordId,
+              splitMembersCount: existing.members.length,
+              createdFrom: 'Split',
+              createdBy: new Types.ObjectId(userId),
+              transactionType: 'Split Settlement',
+              status: 'Paid',
+            }], useTransaction ? { session: dbSession } : {});
+          }
+
+          // B. Paying member gets Expense settlement
+          if (targetUser) {
+            const cat = await getOrCreateSplitCategory(targetUser._id, useTransaction ? dbSession : undefined);
+            const txRecordId = await generateRecordId('EXP');
+            await Transaction.create([{
+              recordId: txRecordId,
+              userId: targetUser._id,
+              title: `Settlement: ${existing.title}`,
+              amount: member.shareAmount,
+              type: 'expense',
+              category: cat._id,
+              date: new Date(),
+              note: `Settled share of bill with ${payerSplitUser?.name || 'Payer'} (Split Closed)`,
+              splitId: existing._id,
+              splitRecordId: existing.recordId,
+              splitMembersCount: existing.members.length,
+              createdFrom: 'Split',
+              createdBy: new Types.ObjectId(userId),
+              transactionType: 'Split Settlement',
+              status: 'Paid',
+            }], useTransaction ? { session: dbSession } : {});
+          }
+        }
+      }
+
+      // Mark split as Closed & record closeReason
+      existing.status = 'Closed';
+      existing.closeReason = reason || '';
       await existing.save(useTransaction ? { session: dbSession } : {});
 
       // Log Audit History
       await Audit.create([{
         userId: new Types.ObjectId(userId),
         action: 'Split Closed',
-        details: { splitId: existing._id, recordId: existing.recordId },
+        details: { splitId: existing._id, recordId: existing.recordId, reason },
       }], useTransaction ? { session: dbSession } : {});
 
       if (useTransaction) {
@@ -711,6 +775,57 @@ export const splitService = {
           await dbSession.commitTransaction();
         } catch (commitErr) {
           console.error('Failed to commit transaction in remove:', commitErr);
+        }
+      }
+
+      // Notify all involved users EXCEPT the person who performed the close action
+      const allMemberUsers: string[] = [];
+
+      // PaidBy user
+      if (existing.paidBy) {
+        const pEmail = (existing.paidBy as any).email?.toLowerCase();
+        if (pEmail) {
+          const u = await User.findOne({ email: pEmail });
+          if (u) allMemberUsers.push(u._id.toString());
+        }
+      }
+
+      // Members
+      for (const m of existing.members) {
+        if (m.userId) {
+          const memberEmail = (m.userId as any).email?.toLowerCase();
+          if (memberEmail) {
+            const u = await User.findOne({ email: memberEmail });
+            if (u) allMemberUsers.push(u._id.toString());
+          }
+        }
+      }
+
+      // Split creator
+      if (existing.userId) {
+        allMemberUsers.push(existing.userId.toString());
+      }
+
+      // Deduplicate user IDs
+      const uniqueUserIds = [...new Set(allMemberUsers)];
+
+      const closeMessage = reason
+        ? `Split "${existing.title}" was closed. Reason: ${reason}`
+        : `Split "${existing.title}" was closed.`;
+
+      for (const targetId of uniqueUserIds) {
+        // Do NOT send notification to the user performing the close action
+        if (targetId === userId) continue;
+
+        try {
+          await notificationService.create(targetId, {
+            title: `Split Closed: "${existing.title}"`,
+            message: closeMessage,
+            type: 'Split Closed',
+            relatedId: existing._id.toString(),
+          });
+        } catch (err) {
+          console.error('Failed to send split closed notification to', targetId, err);
         }
       }
 

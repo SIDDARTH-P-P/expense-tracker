@@ -39,6 +39,7 @@ const STATUS_OPTIONS = [
   { id: 'Pending', label: 'Pending Only' },
   { id: 'Partially Paid', label: 'Partially Paid' },
   { id: 'Completed', label: 'Completed Only' },
+  { id: 'Closed', label: 'Closed Only' },
 ];
 
 export function SplitFilterSortModal({

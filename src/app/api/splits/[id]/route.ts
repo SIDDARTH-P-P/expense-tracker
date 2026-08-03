@@ -32,13 +32,15 @@ export const PATCH = withAuth(async (req, user, ctx: { params: Promise<{ id: str
 
 export const PUT = PATCH;
 
-export const DELETE = withAuth(async (_req, user, ctx: { params: Promise<{ id: string }> }) => {
+export const DELETE = withAuth(async (req, user, ctx: { params: Promise<{ id: string }> }) => {
   try {
     const { id } = await ctx.params;
-    await splitService.remove(user.userId, id);
+    const body = await req.json().catch(() => ({}));
+    const reason = typeof body?.reason === 'string' ? body.reason : undefined;
+    await splitService.remove(user.userId, id, reason);
     return apiSuccess({ deleted: true });
   } catch (err) {
     if (err instanceof SplitError) return apiError(err.message, err.status);
-    return apiError('Could not delete split.', 500);
+    return apiError(err instanceof Error ? err.message : 'Could not close split.', 500);
   }
 });

@@ -52,7 +52,7 @@ export function SplitHeaderSummary({
     if (!myEmail) return { youOwe, owedToYou };
 
     splits.forEach((split) => {
-      if (split.status === 'Completed') return;
+      if (split.status === 'Completed' || split.status === 'Closed') return;
 
       const payerEmail = getSplitUserEmail(split.paidBy).toLowerCase();
       const isPayer = payerEmail === myEmail;

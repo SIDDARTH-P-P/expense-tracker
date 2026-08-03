@@ -5,7 +5,7 @@ export interface INotification extends Document {
   userId: Types.ObjectId;
   title: string;
   message: string;
-  type: 'Split Created' | 'Split Paid' | 'Split Reminder' | 'Expense' | 'Income' | 'System';
+  type: 'Split Created' | 'Split Paid' | 'Split Reminder' | 'Expense' | 'Income' | 'System' | 'Split Closed';
   relatedId?: string | null;
   read: boolean;
   createdAt: Date;
@@ -20,7 +20,7 @@ const NotificationSchema = new Schema<INotification>(
     message: { type: String, required: true, trim: true },
     type: {
       type: String,
-      enum: ['Split Created', 'Split Paid', 'Split Reminder', 'Expense', 'Income', 'System'],
+      enum: ['Split Created', 'Split Paid', 'Split Reminder', 'Expense', 'Income', 'System', 'Split Closed'],
       required: true,
     },
     relatedId: { type: String, default: null },
@@ -33,4 +33,8 @@ NotificationSchema.index({ recordId: 1 }, { unique: true });
 NotificationSchema.index({ userId: 1, read: 1 });
 NotificationSchema.index({ userId: 1, createdAt: -1 });
 
-export default models.Notification || model<INotification>('Notification', NotificationSchema);
+if (models.Notification) {
+  delete (models as any).Notification;
+}
+
+export default model<INotification>('Notification', NotificationSchema);

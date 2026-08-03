@@ -16,7 +16,8 @@ export interface ISplit extends Document {
   paidBy: Types.ObjectId;
   splitMode: SplitMode;
   members: ISplitMember[];
-  status: 'Pending' | 'Partially Paid' | 'Completed';
+  status: 'Pending' | 'Partially Paid' | 'Completed' | 'Closed';
+  closeReason?: string;
   deleted: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -40,7 +41,8 @@ const SplitSchema = new Schema<ISplit>(
     paidBy: { type: Schema.Types.ObjectId, ref: 'SplitUser', required: true },
     splitMode: { type: String, enum: ['equal', 'custom'], default: 'equal' },
     members: { type: [SplitMemberSchema], default: [] },
-    status: { type: String, enum: ['Pending', 'Partially Paid', 'Completed'], default: 'Pending' },
+    status: { type: String, enum: ['Pending', 'Partially Paid', 'Completed', 'Closed'], default: 'Pending' },
+    closeReason: { type: String, default: '' },
     deleted: { type: Boolean, default: false },
   },
   { timestamps: true }
@@ -50,4 +52,8 @@ SplitSchema.index({ recordId: 1 }, { unique: true });
 SplitSchema.index({ userId: 1, createdAt: -1 });
 SplitSchema.index({ userId: 1, title: 1 });
 
-export default models.Split || model<ISplit>('Split', SplitSchema);
+if (models.Split) {
+  delete (models as any).Split;
+}
+
+export default model<ISplit>('Split', SplitSchema);

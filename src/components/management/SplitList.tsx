@@ -66,6 +66,7 @@ export function SplitList({ search = '', filters }: SplitListProps) {
   const [openActionsId, setOpenActionsId] = useState<string | null>(null);
   const [showingReceiveMembersForSplitId, setShowingReceiveMembersForSplitId] = useState<string | null>(null);
   const [confirmClose, setConfirmClose] = useState<Split | null>(null);
+  const [closeReasonInput, setCloseReasonInput] = useState('');
   const [confirmRemind, setConfirmRemind] = useState<Split | null>(null);
   const [confirmReceive, setConfirmReceive] = useState<{ split: Split; member: any } | null>(null);
   const [confirmPaidSelf, setConfirmPaidSelf] = useState<{ split: Split; member: any } | null>(null);
@@ -170,7 +171,7 @@ export function SplitList({ search = '', filters }: SplitListProps) {
       const payerEmail = getSplitUserEmail(split.paidBy).toLowerCase();
       const iAmPayer = payerEmail === myEmail;
 
-      if (split.status === 'Completed') {
+      if (split.status === 'Completed' || split.status === 'Closed') {
         settled++;
         continue;
       }
@@ -223,6 +224,11 @@ export function SplitList({ search = '', filters }: SplitListProps) {
             const myEmail = user?.email?.toLowerCase();
             const payerEmail = getSplitUserEmail(split.paidBy).toLowerCase();
             const iAmPayer = myEmail ? payerEmail === myEmail : false;
+            const isClosedOrCompleted = split.status === 'Closed' || split.status === 'Completed';
+
+            // Calculate paid vs pending count
+            const paidCount = split.members.filter((m) => m.paid).length;
+            const pendingCount = split.members.filter((m) => !m.paid).length;
 
             // Calculate my share info for "own" view
             const myMember = myEmail
@@ -240,13 +246,18 @@ export function SplitList({ search = '', filters }: SplitListProps) {
                     delay: Math.min(index * 0.025, 0.2),
                     duration: 0.22,
                   }}
-                  className="relative flex items-center gap-3 rounded-2xl border border-border bg-surface p-3 shadow-soft"
+                  className={cn(
+                    'relative flex items-center gap-3 rounded-2xl border bg-surface p-3 shadow-soft',
+                    split.status === 'Closed' ? 'border-rose-500/30 bg-surface/80' : 'border-border'
+                  )}
                 >
                   {/* Icon */}
                   <div
                     className={cn(
                       'grid h-11 w-11 shrink-0 place-items-center rounded-2xl',
-                      iAmPayer
+                      split.status === 'Closed'
+                        ? 'bg-rose-500/10 text-rose-500'
+                        : iAmPayer
                         ? 'bg-income/10 text-income'
                         : 'bg-primary/10 text-primary'
                     )}
@@ -263,7 +274,9 @@ export function SplitList({ search = '', filters }: SplitListProps) {
                       <span
                         className={cn(
                           'rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide shrink-0',
-                          split.status === 'Completed'
+                          split.status === 'Closed'
+                            ? 'bg-rose-500/15 text-rose-500 border border-rose-500/30'
+                            : split.status === 'Completed'
                             ? 'bg-income/15 text-income'
                             : split.status === 'Partially Paid'
                             ? 'bg-primary/15 text-primary'
@@ -273,45 +286,32 @@ export function SplitList({ search = '', filters }: SplitListProps) {
                         {split.status}
                       </span>
                     </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-muted">
-                      <span>
-                        {iAmPayer ? 'You paid' : `Paid by ${splitUserName(split.paidBy)}`}
-                      </span>
-                      <span>·</span>
-                      <span>{split.members.length} Members</span>
-                      <span>·</span>
-                      <span>
-                        {split.splitMode === 'equal' ? 'Equal' : 'Custom'}
-                      </span>
-                      {myMember && !iAmPayer && (
-                        <>
-                          <span>·</span>
-                          <span
-                            className={cn(
-                              'font-semibold',
-                              myMember.paid ? 'text-income' : 'text-expense'
-                            )}
-                          >
-                            {myMember.paid
-                              ? '✓ You paid'
-                              : `You owe ${formatCurrency(myMember.shareAmount, currency)}`}
-                          </span>
-                        </>
-                      )}
-                      {iAmPayer && split.status !== 'Completed' && (
-                        <>
-                          <span>·</span>
-                          <span className="font-semibold text-income">
-                            {
-                              split.members.filter(
-                                (m) =>
-                                  getSplitUserEmail(m.userId).toLowerCase() !== payerEmail && !m.paid
-                              ).length
-                            }{' '}
-                            pending
-                          </span>
-                        </>
-                      )}
+                    <div className="mt-1 flex flex-col gap-0.5 text-[11px] text-muted">
+                      <div className="flex items-center gap-1.5 truncate">
+                        <span>{iAmPayer ? 'You paid' : `Paid by ${splitUserName(split.paidBy)}`}</span>
+                        <span className="text-muted/60">•</span>
+                        <span>{split.members.length} Members</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 font-medium truncate">
+                        <span className="text-income">{paidCount} Paid</span>
+                        <span className="text-muted/60">•</span>
+                        <span className="text-expense">{pendingCount} Pending</span>
+                        {myMember && !iAmPayer && (
+                          <>
+                            <span className="text-muted/60">•</span>
+                            <span
+                              className={cn(
+                                'font-bold',
+                                myMember.paid ? 'text-income' : 'text-expense'
+                              )}
+                            >
+                              {myMember.paid
+                                ? '✓ You paid'
+                                : `You owe ${formatCurrency(myMember.shareAmount, currency)}`}
+                            </span>
+                          </>
+                        )}
+                      </div>
                     </div>
 
                     <p className="mt-0.5 font-mono text-[11px] text-primary">
@@ -333,27 +333,30 @@ export function SplitList({ search = '', filters }: SplitListProps) {
                       >
                         <FiEye size={14} />
                       </button>
-                      {split.status !== 'Completed' && (
-                        <button
-                          type="button"
-                          onClick={() => toggleActions(split.id)}
-                          className={`flex h-7 w-7 items-center justify-center rounded-lg transition-colors ${
-                            showActions
-                              ? 'bg-surface-2 text-foreground'
-                              : 'text-muted hover:bg-surface-2'
-                          }`}
-                          aria-label="More actions"
-                        >
-                          <FiMoreVertical size={14} />
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        disabled={isClosedOrCompleted}
+                        onClick={() => !isClosedOrCompleted && toggleActions(split.id)}
+                        className={cn(
+                          'flex h-7 w-7 items-center justify-center rounded-lg transition-colors',
+                          isClosedOrCompleted
+                            ? 'opacity-30 cursor-not-allowed text-muted'
+                            : showActions
+                            ? 'bg-surface-2 text-foreground'
+                            : 'text-muted hover:bg-surface-2'
+                        )}
+                        title={isClosedOrCompleted ? 'Actions disabled for closed split' : 'More actions'}
+                        aria-label="More actions"
+                      >
+                        <FiMoreVertical size={14} />
+                      </button>
                     </div>
                   </div>
                 </motion.div>
 
                 {/* Action tray */}
                 <AnimatePresence>
-                  {showActions && (
+                  {showActions && !isClosedOrCompleted && (
                     <motion.div
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: 'auto', opacity: 1 }}
@@ -401,10 +404,6 @@ export function SplitList({ search = '', filters }: SplitListProps) {
                             );
                           }
 
-                          if (split.status === 'Completed') {
-                            return null;
-                          }
-
                           return (
                             <div className="grid grid-cols-3 gap-2 px-1 pb-1 pt-2">
                               <button
@@ -435,6 +434,7 @@ export function SplitList({ search = '', filters }: SplitListProps) {
                                 type="button"
                                 onClick={() => {
                                   setConfirmClose(split);
+                                  setCloseReasonInput('');
                                   setOpenActionsId(null);
                                 }}
                                 className="flex items-center justify-center gap-1.5 rounded-xl bg-expense/10 px-2 py-2.5 text-xs font-semibold text-expense transition hover:bg-expense hover:text-expense-foreground"
@@ -478,7 +478,87 @@ export function SplitList({ search = '', filters }: SplitListProps) {
         </div>
       )}
 
+      {/* Close Split Modal with Reason TextArea */}
+      <AnimatePresence>
+        {confirmClose && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => {
+                setConfirmClose(null);
+                setCloseReasonInput('');
+              }}
+              className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm"
+            />
+            <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+              <motion.div
+                role="alertdialog"
+                aria-modal="true"
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="pointer-events-auto w-full max-w-sm rounded-3xl border border-border bg-surface p-6 shadow-soft"
+              >
+                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-expense/10 text-expense">
+                  <FiXCircle size={22} />
+                </div>
+                <h2 className="mb-1 text-lg font-display font-semibold">
+                  Close "{confirmClose.title}"?
+                </h2>
+                <p className="mb-4 text-xs text-muted">
+                  Closing this split will set its status to Closed and disable further actions. All members will be notified.
+                </p>
 
+                <div className="mb-5 flex flex-col gap-1.5">
+                  <label className="text-xs font-bold text-muted uppercase tracking-wider">
+                    Reason for Closing
+                  </label>
+                  <textarea
+                    rows={3}
+                    value={closeReasonInput}
+                    onChange={(e) => setCloseReasonInput(e.target.value)}
+                    placeholder="Enter reason for closing (e.g. Settled offline, Cancelled)..."
+                    className="w-full rounded-xl border border-border bg-surface-2 p-3 text-xs text-foreground placeholder:text-muted focus:border-primary focus:outline-none"
+                  />
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setConfirmClose(null);
+                      setCloseReasonInput('');
+                    }}
+                    className="flex-1 rounded-xl border border-border bg-surface-2 py-2.5 text-xs font-semibold text-foreground transition hover:bg-surface-3"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    disabled={deleteSplit.isPending}
+                    onClick={() => {
+                      deleteSplit.mutate(
+                        { id: confirmClose.id, reason: closeReasonInput },
+                        {
+                          onSuccess: () => {
+                            setConfirmClose(null);
+                            setCloseReasonInput('');
+                          },
+                        }
+                      );
+                    }}
+                    className="flex-1 rounded-xl bg-expense py-2.5 text-xs font-semibold text-expense-foreground transition hover:opacity-90 disabled:opacity-50"
+                  >
+                    {deleteSplit.isPending ? 'Closing...' : 'Close Split'}
+                  </button>
+                </div>
+              </motion.div>
+            </div>
+          </>
+        )}
+      </AnimatePresence>
 
       <BottomSheet
         isOpen={!!editing}
@@ -552,23 +632,6 @@ export function SplitList({ search = '', filters }: SplitListProps) {
           </div>
         )}
       </BottomSheet>
-
-      <ConfirmDialog
-        isOpen={!!confirmClose}
-        title={`Close "${confirmClose?.title}"?`}
-        description="Are you sure you want to close this split? This will permanently remove it."
-        confirmLabel="Close"
-        isDangerous={true}
-        isLoading={deleteSplit.isPending}
-        onConfirm={() => {
-          if (confirmClose) {
-            deleteSplit.mutate(confirmClose.id, {
-              onSuccess: () => setConfirmClose(null),
-            });
-          }
-        }}
-        onCancel={() => setConfirmClose(null)}
-      />
 
       <ConfirmDialog
         isOpen={!!confirmRemind}

@@ -81,7 +81,8 @@ export interface Split {
   paidBy: SplitUser | string;
   splitMode: SplitMode;
   members: SplitMember[];
-  status: 'Pending' | 'Partially Paid' | 'Completed';
+  status: 'Pending' | 'Partially Paid' | 'Completed' | 'Closed';
+  closeReason?: string;
   deleted: boolean;
   createdAt: string;
   updatedAt: string;
@@ -120,7 +121,7 @@ export interface Notification {
   userId: string;
   title: string;
   message: string;
-  type: 'Split Created' | 'Split Paid' | 'Split Reminder' | 'Expense' | 'Income' | 'System';
+  type: 'Split Created' | 'Split Paid' | 'Split Reminder' | 'Expense' | 'Income' | 'System' | 'Split Closed';
   relatedId?: string | null;
   read: boolean;
   createdAt: string;
