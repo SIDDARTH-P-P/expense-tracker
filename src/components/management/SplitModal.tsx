@@ -285,7 +285,7 @@ export function SplitModal({ split, onClose, readOnly: readOnlyProp, onEdit }: S
             <div className="flex items-center gap-1.5 text-xs font-semibold">
               <span className="text-income">{paidCount} Paid</span>
               <span className="text-muted">•</span>
-              <span className="text-expense">{pendingCount} Pending</span>
+              <span className="text-amber-500">{pendingCount} Pending</span>
             </div>
           </div>
           <div className="grid grid-cols-3 gap-2 text-center">

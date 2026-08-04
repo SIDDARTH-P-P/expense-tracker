@@ -24,7 +24,7 @@ import { LoadingSkeleton } from '@/components/management/LoadingSkeleton';
 import { SplitModal } from '@/components/management/SplitModal';
 import { useCurrentUser } from '@/hooks/useAuth';
 import { useDeleteSplit, useSplits, useMarkSplitPaid, useSplitUsers, useSendSplitReminder } from '@/hooks/useManagement';
-import { formatCurrency } from '@/lib/utils/format';
+import { formatCurrency, formatTime } from '@/lib/utils/format';
 import { useUIStore } from '@/store/ui.store';
 import { cn } from '@/lib/utils/cn';
 import type { Split, SplitUser } from '@/types';
@@ -45,6 +45,26 @@ function getSplitUserId(value: SplitUser | string) {
 
 function getSplitUserEmail(value: SplitUser | string) {
   return typeof value === 'string' ? '' : value.email;
+}
+
+function getDateLabel(dateStr: string): string {
+  if (!dateStr) return 'UNKNOWN DATE';
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return 'UNKNOWN DATE';
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+
+  if (d.toDateString() === today.toDateString()) return 'TODAY';
+  if (d.toDateString() === yesterday.toDateString()) return 'YESTERDAY';
+  return d
+    .toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: d.getFullYear() !== today.getFullYear() ? 'numeric' : undefined,
+    })
+    .toUpperCase();
 }
 
 export function SplitList({ search = '', filters }: SplitListProps) {
@@ -197,6 +217,18 @@ export function SplitList({ search = '', filters }: SplitListProps) {
     return { youOwe, owedToYou, settled };
   }, [splits, user]);
 
+  // Group splits by date
+  const groupedSplits = useMemo(() => {
+    const map = new Map<string, Split[]>();
+    for (const split of filteredSplits) {
+      const label = getDateLabel(split.createdAt);
+      const arr = map.get(label) ?? [];
+      arr.push(split);
+      map.set(label, arr);
+    }
+    return [...map.entries()];
+  }, [filteredSplits]);
+
   function toggleActions(id: string) {
     setOpenActionsId((prev) => (prev === id ? null : id));
     setShowingReceiveMembersForSplitId(null);
@@ -218,106 +250,122 @@ export function SplitList({ search = '', filters }: SplitListProps) {
           }
         />
       ) : (
-        <div className="flex flex-col gap-2.5">
-          {filteredSplits.map((split, index) => {
-            const showActions = openActionsId === split.id;
-            const myEmail = user?.email?.toLowerCase();
-            const payerEmail = getSplitUserEmail(split.paidBy).toLowerCase();
-            const iAmPayer = myEmail ? payerEmail === myEmail : false;
-            const isClosedOrCompleted = split.status === 'Closed' || split.status === 'Completed';
+        <div className="flex flex-col gap-5">
+          {groupedSplits.map(([label, items], gi) => (
+            <div key={label}>
+              {/* Date group header */}
+              <div className="mb-2.5 flex items-center gap-2">
+                <span className="text-[11px] font-bold uppercase tracking-widest text-muted">{label}</span>
+                <div className="flex-1 h-px bg-border/60" />
+              </div>
 
-            // Calculate paid vs pending count
-            const paidCount = split.members.filter((m) => m.paid).length;
-            const pendingCount = split.members.filter((m) => !m.paid).length;
+              <div className="flex flex-col gap-2.5">
+                {items.map((split, index) => {
+                  const showActions = openActionsId === split.id;
+                  const myEmail = user?.email?.toLowerCase();
+                  const payerEmail = getSplitUserEmail(split.paidBy).toLowerCase();
+                  const iAmPayer = myEmail ? payerEmail === myEmail : false;
+                  const isClosedOrCompleted = split.status === 'Closed' || split.status === 'Completed';
 
-            // Calculate my share info for "own" view
-            const myMember = myEmail
-              ? split.members.find(
-                  (m) => getSplitUserEmail(m.userId).toLowerCase() === myEmail
-                )
-              : undefined;
+                  // Calculate paid vs pending count
+                  const paidCount = split.members.filter((m) => m.paid).length;
+                  const pendingCount = split.members.filter((m) => !m.paid).length;
 
-            return (
-              <div key={split.id} className="relative overflow-hidden rounded-[20px]">
-                <motion.div
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{
-                    delay: Math.min(index * 0.025, 0.2),
-                    duration: 0.22,
-                  }}
-                  className={cn(
-                    'relative flex items-center gap-3 rounded-2xl border bg-surface p-3 shadow-soft',
-                    split.status === 'Closed' ? 'border-rose-500/30 bg-surface/80' : 'border-border'
-                  )}
-                >
-                  {/* Icon */}
-                  <div
-                    className={cn(
-                      'grid h-11 w-11 shrink-0 place-items-center rounded-2xl',
-                      split.status === 'Closed'
-                        ? 'bg-rose-500/10 text-rose-500'
-                        : iAmPayer
-                        ? 'bg-income/10 text-income'
-                        : 'bg-primary/10 text-primary'
-                    )}
-                  >
-                    <FiGitBranch size={18} />
-                  </div>
+                  // Calculate my share info for "own" view
+                  const myMember = myEmail
+                    ? split.members.find(
+                        (m) => getSplitUserEmail(m.userId).toLowerCase() === myEmail
+                      )
+                    : undefined;
 
-                  {/* Content */}
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <p className="truncate text-sm font-semibold">
-                        {split.title}
-                      </p>
-                      <span
+                  return (
+                    <div key={split.id} className="relative overflow-hidden rounded-[20px]">
+                      <motion.div
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{
+                          delay: Math.min(gi * 0.03 + index * 0.025, 0.25),
+                          duration: 0.22,
+                        }}
                         className={cn(
-                          'rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide shrink-0',
-                          split.status === 'Closed'
-                            ? 'bg-rose-500/15 text-rose-500 border border-rose-500/30'
-                            : split.status === 'Completed'
-                            ? 'bg-income/15 text-income'
-                            : split.status === 'Partially Paid'
-                            ? 'bg-primary/15 text-primary'
-                            : 'bg-surface-2 text-muted border border-border'
+                          'relative flex items-center gap-3 rounded-2xl border bg-surface p-3 shadow-soft',
+                          split.status === 'Closed' ? 'border-rose-500/30 bg-surface/80' : 'border-border'
                         )}
                       >
-                        {split.status}
-                      </span>
-                    </div>
-                    <div className="mt-1 flex flex-col gap-0.5 text-[11px] text-muted">
-                      <div className="flex items-center gap-1.5 truncate">
-                        <span>{iAmPayer ? 'You paid' : `Paid by ${splitUserName(split.paidBy)}`}</span>
-                        <span className="text-muted/60">•</span>
-                        <span>{split.members.length} Members</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 font-medium truncate">
-                        <span className="text-income">{paidCount} Paid</span>
-                        <span className="text-muted/60">•</span>
-                        <span className="text-expense">{pendingCount} Pending</span>
-                        {myMember && !iAmPayer && (
-                          <>
-                            <span className="text-muted/60">•</span>
+                        {/* Icon */}
+                        <div
+                          className={cn(
+                            'grid h-11 w-11 shrink-0 place-items-center rounded-2xl',
+                            split.status === 'Closed'
+                              ? 'bg-rose-500/10 text-rose-500'
+                              : iAmPayer
+                              ? 'bg-income/10 text-income'
+                              : 'bg-primary/10 text-primary'
+                          )}
+                        >
+                          <FiGitBranch size={18} />
+                        </div>
+
+                        {/* Content */}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            <p className="truncate text-sm font-semibold">
+                              {split.title}
+                            </p>
                             <span
                               className={cn(
-                                'font-bold',
-                                myMember.paid ? 'text-income' : 'text-expense'
+                                'rounded-full px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide shrink-0',
+                                split.status === 'Closed'
+                                  ? 'bg-rose-500/15 text-rose-500 border border-rose-500/30'
+                                  : split.status === 'Completed'
+                                  ? 'bg-income/15 text-income'
+                                  : split.status === 'Partially Paid'
+                                  ? 'bg-primary/15 text-primary'
+                                  : split.status === 'Pending'
+                                  ? 'bg-amber-500/15 text-amber-500 border border-amber-500/30'
+                                  : 'bg-surface-2 text-muted border border-border'
                               )}
                             >
-                              {myMember.paid
-                                ? '✓ You paid'
-                                : `You owe ${formatCurrency(myMember.shareAmount, currency)}`}
+                              {split.status}
                             </span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-
-                    <p className="mt-0.5 font-mono text-[11px] text-primary">
-                      {split.recordId}
-                    </p>
-                  </div>
+                          </div>
+                          <div className="mt-1 flex flex-col gap-0.5 text-[11px] text-muted">
+                            <div className="flex items-center gap-1.5 truncate">
+                              <span>{iAmPayer ? 'You paid' : `Paid by ${splitUserName(split.paidBy)}`}</span>
+                              <span className="text-muted/60">•</span>
+                              <span>{split.members.length} Members</span>
+                            </div>
+                            <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 font-medium">
+                              <span className="text-income">{paidCount} Paid</span>
+                              <span className="text-muted/60">•</span>
+                              <span className="text-amber-500">{pendingCount} Pending</span>
+                              {iAmPayer ? (
+                                <>
+                                  <span className="text-muted/60">•</span>
+                                  <span className="font-bold text-income">✓ You paid</span>
+                                </>
+                              ) : myMember ? (
+                                <>
+                                  <span className="text-muted/60">•</span>
+                                  <span
+                                    className={cn(
+                                      'font-bold',
+                                      myMember.paid ? 'text-income' : 'text-expense'
+                                    )}
+                                  >
+                                    {myMember.paid
+                                      ? '✓ You paid'
+                                      : `You owe ${formatCurrency(myMember.shareAmount, currency)}`}
+                                  </span>
+                                </>
+                              ) : null}
+                              <span className="text-muted/60">•</span>
+                              <span className="whitespace-nowrap font-normal text-muted">
+                                {formatTime(split.createdAt)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
 
                   {/* Right Section: Amount (top right) + Action buttons (bottom right) */}
                   <div className="flex shrink-0 flex-col items-end justify-between gap-1.5 self-stretch">
@@ -476,7 +524,10 @@ export function SplitList({ search = '', filters }: SplitListProps) {
             );
           })}
         </div>
-      )}
+      </div>
+    ))}
+  </div>
+)}
 
       {/* Close Split Modal with Reason TextArea */}
       <AnimatePresence>
