@@ -15,6 +15,7 @@ import {
   FiBell,
   FiCheckSquare,
   FiXCircle,
+  FiClock,
 } from 'react-icons/fi';
 import { BottomSheet } from '@/components/common/BottomSheet';
 import { EmptyState } from '@/components/common/EmptyState';
@@ -45,6 +46,16 @@ function getSplitUserId(value: SplitUser | string) {
 
 function getSplitUserEmail(value: SplitUser | string) {
   return typeof value === 'string' ? '' : value.email;
+}
+
+function formatPaidDateTime(dateStr: string | Date): string {
+  if (!dateStr) return '';
+  const d = typeof dateStr === 'string' ? new Date(dateStr) : dateStr;
+  if (isNaN(d.getTime())) return '';
+  const month = d.toLocaleDateString('en-US', { month: 'short' });
+  const day = d.getDate();
+  const time = d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  return `${month} ${day} | ${time}`;
 }
 
 function getDateLabel(dateStr: string): string {
@@ -335,43 +346,47 @@ export function SplitList({ search = '', filters }: SplitListProps) {
                               <span className="text-muted/60">•</span>
                               <span>{split.members.length} Members</span>
                             </div>
-                            <div className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 font-medium">
+                            <div className="flex items-center gap-1.5 font-medium">
                               <span className="text-income">{paidCount} Paid</span>
                               <span className="text-muted/60">•</span>
                               <span className="text-amber-500">{pendingCount} Pending</span>
-                              {iAmPayer ? (
-                                <>
-                                  <span className="text-muted/60">•</span>
-                                  <span className="font-bold text-income">✓ You paid</span>
-                                </>
-                              ) : myMember ? (
-                                <>
-                                  <span className="text-muted/60">•</span>
-                                  <span
-                                    className={cn(
-                                      'font-bold',
-                                      myMember.paid ? 'text-income' : 'text-expense'
-                                    )}
-                                  >
-                                    {myMember.paid
-                                      ? '✓ You paid'
-                                      : `You owe ${formatCurrency(myMember.shareAmount, currency)}`}
-                                  </span>
-                                </>
-                              ) : null}
-                              <span className="text-muted/60">•</span>
-                              <span className="whitespace-nowrap font-normal text-muted">
-                                {formatTime(split.createdAt)}
-                              </span>
                             </div>
+                            {iAmPayer ? (
+                              <div className="flex items-center gap-1 font-bold text-income">
+                                <span>✓ You paid</span>
+                                <span className="font-normal text-muted/80">({formatPaidDateTime(split.createdAt)})</span>
+                              </div>
+                            ) : myMember ? (
+                              <div className="flex items-center gap-1 font-bold">
+                                {myMember.paid ? (
+                                  <span className="text-income flex items-center gap-1">
+                                    <span>✓ You paid</span>
+                                    <span className="font-normal text-muted/80">({formatPaidDateTime(split.updatedAt || split.createdAt)})</span>
+                                  </span>
+                                ) : (
+                                  <span className="text-expense">
+                                    You owe {formatCurrency(myMember.shareAmount, currency)}
+                                  </span>
+                                )}
+                              </div>
+                            ) : null}
                           </div>
                         </div>
 
-                  {/* Right Section: Amount (top right) + Action buttons (bottom right) */}
+                  {/* Right Section: Own Amount, Total Amount & Time (top right) + Action buttons (bottom right) */}
                   <div className="flex shrink-0 flex-col items-end justify-between gap-1.5 self-stretch">
-                    <p className="whitespace-nowrap text-right font-mono text-sm font-bold text-primary">
-                      {formatCurrency(split.amount, currency)}
-                    </p>
+                    <div className="flex flex-col items-end gap-0.5">
+                      <p className="whitespace-nowrap text-right font-mono text-sm font-bold text-primary">
+                        {formatCurrency(myMember ? myMember.shareAmount : split.amount, currency)}
+                      </p>
+                      <p className="whitespace-nowrap text-right text-[10px] font-medium text-muted">
+                        Total {formatCurrency(split.amount, currency)}
+                      </p>
+                      <span className="inline-flex items-center gap-1 whitespace-nowrap text-[11px] font-normal text-muted">
+                        <FiClock size={11} className="shrink-0 text-muted/70" />
+                        {formatTime(split.createdAt)}
+                      </span>
+                    </div>
                     <div className="flex items-center gap-1">
                       <button
                         type="button"
