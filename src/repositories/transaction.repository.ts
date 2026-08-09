@@ -7,6 +7,7 @@ export interface TransactionQueryOptions {
   search?: string;
   type?: 'income' | 'expense';
   category?: string;
+  notebook?: string;
   from?: string;
   to?: string;
   sortBy?: 'date' | 'amount';
@@ -22,6 +23,7 @@ export const transactionRepository = {
       search,
       type,
       category,
+      notebook,
       from,
       to,
       sortBy = 'date',
@@ -50,6 +52,7 @@ export const transactionRepository = {
     }
     if (type) filter.type = type;
     if (category) filter.category = category;
+    if (notebook) filter.notebook = notebook;
     if (from || to) {
       filter.date = {};
       if (from) filter.date.$gte = new Date(from);
@@ -61,6 +64,7 @@ export const transactionRepository = {
     const [items, total] = await Promise.all([
       Transaction.find(filter)
         .populate('category')
+        .populate('notebook')
         .sort(sort)
         .skip((page - 1) * pageSize)
         .limit(pageSize),
@@ -74,7 +78,7 @@ export const transactionRepository = {
     await connectDB();
     const candidates: FilterQuery<ITransaction>[] = [{ recordId: id }];
     if (mongoose.isValidObjectId(id)) candidates.push({ _id: id });
-    return Transaction.findOne({ userId, $or: candidates }).populate('category');
+    return Transaction.findOne({ userId, $or: candidates }).populate('category').populate('notebook');
   },
 
   async findMissingRecordIds(userId: string) {
@@ -84,13 +88,14 @@ export const transactionRepository = {
 
   async findAllByUser(userId: string) {
     await connectDB();
-    return Transaction.find({ userId }).populate('category');
+    return Transaction.find({ userId }).populate('category').populate('notebook');
   },
 
   async create(data: Partial<ITransaction>) {
     await connectDB();
     const doc = await Transaction.create(data);
-    return doc.populate('category');
+    await doc.populate('category');
+    return doc.populate('notebook');
   },
 
   async updateById(id: string, userId: string, data: Partial<ITransaction>) {
@@ -100,7 +105,7 @@ export const transactionRepository = {
     return Transaction.findOneAndUpdate({ userId, $or: candidates }, data, {
       new: true,
       runValidators: true,
-    }).populate('category');
+    }).populate('category').populate('notebook');
   },
 
   async deleteById(id: string, userId: string) {
@@ -117,6 +122,6 @@ export const transactionRepository = {
 
   async findInRange(userId: string, from: Date, to: Date) {
     await connectDB();
-    return Transaction.find({ userId, date: { $gte: from, $lte: to } }).populate('category');
+    return Transaction.find({ userId, date: { $gte: from, $lte: to } }).populate('category').populate('notebook');
   },
 };

@@ -1,14 +1,16 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { FiList, FiBook } from 'react-icons/fi';
 import { useInfiniteTransactions } from '@/hooks/useTransactions';
 import { useCurrentUser } from '@/hooks/useAuth';
+import { useNotebooks } from '@/hooks/useNotebooks';
 import { useDebounce } from '@/hooks/useDebounce';
 import { FilterBar } from '@/components/transactions/FilterBar';
 import { TransactionList } from '@/components/transactions/TransactionList';
 import { CashBookView } from '@/components/transactions/CashBookView';
 import { ExportReportModal } from '@/components/transactions/ExportReportModal';
+import { CreateMonthlyBookModal } from '@/components/notebooks/CreateMonthlyBookModal';
 import { useTransactions } from '@/hooks/useTransactions';
 import { useUIStore } from '@/store/ui.store';
 import type { TransactionFilters } from '@/hooks/useTransactions';
@@ -18,9 +20,21 @@ type ViewMode = 'list' | 'cashbook';
 
 export default function TransactionsPage() {
   const { data: user } = useCurrentUser();
+  const { data: notebooksData } = useNotebooks();
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [filters, setFilters] = useState<Omit<TransactionFilters, 'page'>>({});
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [hasPromptedModal, setHasPromptedModal] = useState(false);
+  const [isMonthlyBookModalOpen, setIsMonthlyBookModalOpen] = useState(false);
+
+  const activeMonthStatus = notebooksData?.activeMonthStatus;
+
+  useEffect(() => {
+    if (activeMonthStatus && !activeMonthStatus.exists && !hasPromptedModal) {
+      setIsMonthlyBookModalOpen(true);
+      setHasPromptedModal(true);
+    }
+  }, [activeMonthStatus, hasPromptedModal]);
 
   const debouncedSearch = useDebounce(filters.search, 350);
 
@@ -157,6 +171,13 @@ export default function TransactionsPage() {
         onClose={() => setIsExportModalOpen(false)}
         transactions={allFilteredItems}
         activeFilters={activeFilters}
+      />
+
+      {/* Monthly Book Prompt Modal */}
+      <CreateMonthlyBookModal
+        isOpen={isMonthlyBookModalOpen}
+        onClose={() => setIsMonthlyBookModalOpen(false)}
+        monthBookName={activeMonthStatus?.name ?? 'Current Month'}
       />
     </div>
   );

@@ -11,6 +11,7 @@ export interface TransactionFilters {
   search?: string;
   type?: 'income' | 'expense';
   category?: string;
+  notebook?: string;
   from?: string;
   to?: string;
   sortBy?: 'date' | 'amount';

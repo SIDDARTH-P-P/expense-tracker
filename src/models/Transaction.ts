@@ -9,6 +9,7 @@ export interface ITransaction extends Document {
   category: Types.ObjectId;
   subCategory?: string | null;
   paymentMethod: 'cash' | 'card' | 'upi' | 'bank_transfer' | 'other';
+  notebook?: Types.ObjectId | null;
   splitId?: Types.ObjectId | null;
   splitRecordId?: string | null;
   splitMembersCount?: number | null;
@@ -38,6 +39,7 @@ const TransactionSchema = new Schema<ITransaction>(
     },
     date: { type: Date, required: true, default: Date.now, index: true },
     note: { type: String, trim: true, maxlength: 500, default: '' },
+    notebook: { type: Schema.Types.ObjectId, ref: 'Notebook', default: null, index: true },
     splitId: { type: Schema.Types.ObjectId, ref: 'Split', default: null, index: true },
     splitRecordId: { type: String, default: null, index: true },
     splitMembersCount: { type: Number, default: null },

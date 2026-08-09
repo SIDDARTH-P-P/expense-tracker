@@ -144,6 +144,14 @@ function TransactionCardInner({ transaction, currency, compact, onEdit, onDelete
             </div>
             <div className="mt-1 flex min-w-0 flex-row items-center flex-wrap gap-x-1.5 gap-y-0.5 text-xs text-muted">
               <span className="max-w-[8rem] truncate">{category?.name ?? '—'}</span>
+              {typeof transaction.notebook === 'object' && transaction.notebook?.name && (
+                <>
+                  <span className="opacity-40">·</span>
+                  <span className="whitespace-nowrap inline-flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold text-primary">
+                    📘 {transaction.notebook.name}
+                  </span>
+                </>
+              )}
               {transaction.splitId && (
                 <>
                   <span className="opacity-40">·</span>

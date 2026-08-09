@@ -1,5 +1,6 @@
 import { Types } from 'mongoose';
 import { transactionRepository, type TransactionQueryOptions } from '@/repositories/transaction.repository';
+import { notebookService } from '@/services/notebook.service';
 import { connectDB } from '@/lib/db';
 import Category from '@/models/Category';
 import { generateRecordId } from '@/lib/generateRecordId';
@@ -19,6 +20,7 @@ export interface TransactionInput {
   paymentMethod: 'cash' | 'card' | 'upi' | 'bank_transfer' | 'other';
   date: string;
   note?: string;
+  notebookId?: string | null;
 }
 
 function parseDate(dateStr: string): Date {
@@ -71,13 +73,28 @@ export const transactionService = {
       throw new TransactionError('Invalid category. Please select a valid category from the list.', 400);
     }
 
+    let notebookObjId: Types.ObjectId | null = null;
+    if (input.notebookId) {
+      notebookObjId = new Types.ObjectId(input.notebookId);
+    } else {
+      const activeNotebook = await notebookService.ensureCurrentMonthNotebook(userId, input.date);
+      notebookObjId = activeNotebook._id as Types.ObjectId;
+    }
+
+    const txDate = parseDate(input.date);
+
     return transactionRepository.create({
-      ...input,
+      title: input.title,
+      amount: input.amount,
+      type: input.type,
+      paymentMethod: input.paymentMethod,
+      note: input.note,
       recordId: await generateRecordId(input.type === 'income' ? 'INC' : 'EXP'),
       userId: new Types.ObjectId(userId),
       category: new Types.ObjectId(input.category),
       subCategory: input.subCategory || null,
-      date: parseDate(input.date),
+      notebook: notebookObjId,
+      date: txDate,
     });
   },
 
@@ -93,17 +110,19 @@ export const transactionService = {
       category: getObjectId(original.category),
       subCategory: (original as any).subCategory || null,
       paymentMethod: original.paymentMethod,
+      notebook: original.notebook ? getObjectId(original.notebook) : null,
       date: new Date(),
       note: original.note,
     });
   },
 
   async update(userId: string, id: string, input: Partial<TransactionInput>) {
-    const { category, date, ...rest } = input;
+    const { category, date, notebookId, ...rest } = input;
     const updated = await transactionRepository.updateById(id, userId, {
       ...rest,
       ...(category ? { category: new Types.ObjectId(category) } : {}),
       ...(date ? { date: parseDate(date) } : {}),
+      ...(notebookId !== undefined ? { notebook: notebookId ? new Types.ObjectId(notebookId) : null } : {}),
     });
     if (!updated) throw new TransactionError('Transaction not found.', 404);
     return updated;

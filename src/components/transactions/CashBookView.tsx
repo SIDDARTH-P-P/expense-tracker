@@ -1,202 +1,522 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { formatCurrency } from '@/lib/utils/format';
-import type { Transaction, Category } from '@/types';
-import { FiTrendingDown, FiTrendingUp } from 'react-icons/fi';
+import type { Transaction } from '@/types';
+import {
+  FiBook,
+  FiCalendar,
+  FiArrowUpRight,
+  FiArrowDownRight,
+  FiArrowLeft,
+  FiPlus,
+  FiLayers,
+  FiX,
+  FiCheck,
+  FiChevronRight,
+  FiBookmark,
+} from 'react-icons/fi';
+import { cn } from '@/lib/utils/cn';
+import { BottomSheet } from '@/components/common/BottomSheet';
+import { ConfirmDialog } from '@/components/common/ConfirmDialog';
+import { TransactionForm } from '@/components/forms/TransactionForm';
+import { SplitModal } from '@/components/management/SplitModal';
+import { TransactionCard } from '@/components/transactions/TransactionCard';
+import { useDeleteTransaction, useUpdateTransaction } from '@/hooks/useTransactions';
+import { useSplit } from '@/hooks/useManagement';
+import { useNotebooks, useCreateNotebook } from '@/hooks/useNotebooks';
 
 interface CashBookViewProps {
   transactions: Transaction[];
   currency: string;
 }
 
-function formatDateLabel(dateStr: string) {
-  const d = new Date(dateStr);
-  return d.toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+type TransactionWithMongoId = Transaction & { _id?: string | { toString(): string } };
+
+function getTransactionId(transaction?: Transaction | null) {
+  if (!transaction) return '';
+  const mongoId = (transaction as TransactionWithMongoId)._id;
+  if (transaction.id) return transaction.id;
+  if (typeof mongoId === 'string') return mongoId;
+  return mongoId?.toString() ?? '';
 }
 
-function formatTimeLabel(dateStr: string) {
+function formatDateLabel(dateStr: string): string {
+  if (!dateStr) return 'UNKNOWN DATE';
   const d = new Date(dateStr);
-  return d.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+  if (isNaN(d.getTime())) return 'UNKNOWN DATE';
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+
+  if (d.toDateString() === today.toDateString()) return 'TODAY';
+  if (d.toDateString() === yesterday.toDateString()) return 'YESTERDAY';
+  return d
+    .toLocaleDateString('en-US', {
+      weekday: 'short',
+      month: 'short',
+      day: 'numeric',
+      year: d.getFullYear() !== today.getFullYear() ? 'numeric' : undefined,
+    })
+    .toUpperCase();
 }
 
 interface DayGroup {
   dateKey: string;
   label: string;
-  entries: Array<{ tx: Transaction; runningBalance: number }>;
+  items: Transaction[];
   dayIncome: number;
   dayExpense: number;
-  openingBalance: number;
-  closingBalance: number;
 }
 
 export function CashBookView({ transactions, currency }: CashBookViewProps) {
+  const { data: notebooksData } = useNotebooks();
+  const userNotebooks = notebooksData?.notebooks ?? [];
+  const createNotebookMutation = useCreateNotebook();
+
+  // null = viewing the Book List; string = selected book ID
+  const [selectedNotebookId, setSelectedNotebookId] = useState<string | null>(null);
+  const [isCreatingBook, setIsCreatingBook] = useState(false);
+  const [newBookName, setNewBookName] = useState('');
+
+  const [editing, setEditing] = useState<Transaction | null>(null);
+  const [deleting, setDeleting] = useState<Transaction | null>(null);
+  const [viewing, setViewing] = useState<Transaction | null>(null);
+
+  const updateTx = useUpdateTransaction();
+  const deleteTx = useDeleteTransaction();
+
+  // Compute stats per notebook
+  const notebookStats = useMemo(() => {
+    const map = new Map<string, { count: number; income: number; expense: number; net: number }>();
+
+    for (const tx of transactions) {
+      const nbId = typeof tx.notebook === 'object' ? tx.notebook?.id : tx.notebook;
+      const key = nbId ?? 'UNASSIGNED';
+
+      const current = map.get(key) ?? { count: 0, income: 0, expense: 0, net: 0 };
+      const amount = Number(tx.amount) || 0;
+      if (tx.type === 'income') {
+        current.income += amount;
+      } else {
+        current.expense += amount;
+      }
+      current.count += 1;
+      current.net = current.income - current.expense;
+      map.set(key, current);
+    }
+
+    return map;
+  }, [transactions]);
+
+  // Overall totals across all transactions
+  const totalAllIncome = useMemo(
+    () => transactions.reduce((s, tx) => s + (tx.type === 'income' ? tx.amount : 0), 0),
+    [transactions]
+  );
+  const totalAllExpense = useMemo(
+    () => transactions.reduce((s, tx) => s + (tx.type === 'expense' ? tx.amount : 0), 0),
+    [transactions]
+  );
+  const totalAllNet = totalAllIncome - totalAllExpense;
+
+  // Filter transactions based on selected notebook
+  const filteredTransactions = useMemo(() => {
+    if (!selectedNotebookId || selectedNotebookId === 'ALL') return transactions;
+    if (selectedNotebookId === 'UNASSIGNED') {
+      return transactions.filter((tx) => !tx.notebook);
+    }
+    return transactions.filter((tx) => {
+      const nbId = typeof tx.notebook === 'object' ? tx.notebook?.id : tx.notebook;
+      return nbId === selectedNotebookId;
+    });
+  }, [transactions, selectedNotebookId]);
+
+  // Group filtered transactions by date
   const { dayGroups, totalIncome, totalExpense, finalBalance } = useMemo(() => {
-    // Sort oldest → newest for correct running balance
-    const sorted = [...transactions].sort(
-      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+    const sorted = [...filteredTransactions].sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
     );
 
-    let runningBalance = 0;
     let totalIncome = 0;
     let totalExpense = 0;
 
-    // Build entries with running balance
-    const withBalance = sorted.map((tx) => {
-      if (tx.type === 'income') {
-        runningBalance += tx.amount;
-        totalIncome += tx.amount;
-      } else {
-        runningBalance -= tx.amount;
-        totalExpense += tx.amount;
-      }
-      return { tx, runningBalance };
-    });
+    for (const tx of sorted) {
+      if (tx.type === 'income') totalIncome += tx.amount;
+      else totalExpense += tx.amount;
+    }
 
-    // Group by date
-    const map = new Map<string, typeof withBalance>();
-    for (const entry of withBalance) {
-      const dateKey = new Date(entry.tx.date).toISOString().slice(0, 10);
+    const map = new Map<string, Transaction[]>();
+    for (const tx of sorted) {
+      const dateKey = new Date(tx.date).toISOString().slice(0, 10);
       if (!map.has(dateKey)) map.set(dateKey, []);
-      map.get(dateKey)!.push(entry);
+      map.get(dateKey)!.push(tx);
     }
 
     const dayGroups: DayGroup[] = [];
-    let prevBalance = 0;
 
-    for (const [dateKey, entries] of map.entries()) {
-      const dayIncome = entries.reduce((s, e) => s + (e.tx.type === 'income' ? e.tx.amount : 0), 0);
-      const dayExpense = entries.reduce((s, e) => s + (e.tx.type === 'expense' ? e.tx.amount : 0), 0);
-      const closingBalance = entries[entries.length - 1]?.runningBalance ?? prevBalance;
+    for (const [dateKey, items] of map.entries()) {
+      const dayIncome = items.reduce((s, e) => s + (e.type === 'income' ? e.amount : 0), 0);
+      const dayExpense = items.reduce((s, e) => s + (e.type === 'expense' ? e.amount : 0), 0);
 
       dayGroups.push({
         dateKey,
-        label: formatDateLabel(entries[0].tx.date),
-        entries,
+        label: formatDateLabel(items[0].date),
+        items,
         dayIncome,
         dayExpense,
-        openingBalance: prevBalance,
-        closingBalance,
       });
-
-      prevBalance = closingBalance;
     }
 
-    return { dayGroups, totalIncome, totalExpense, finalBalance: runningBalance };
-  }, [transactions]);
+    return { dayGroups, totalIncome, totalExpense, finalBalance: totalIncome - totalExpense };
+  }, [filteredTransactions]);
 
-  if (transactions.length === 0) {
+  const activeNotebook = userNotebooks.find((n) => n.id === selectedNotebookId);
+
+  const handleCreateBook = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newBookName.trim()) return;
+    createNotebookMutation.mutate(newBookName.trim(), {
+      onSuccess: (created) => {
+        setNewBookName('');
+        setIsCreatingBook(false);
+        setSelectedNotebookId(created.id);
+      },
+    });
+  };
+
+  // LEVEL 1: COMPACT SLEEK BOOK LIST VIEW
+  if (selectedNotebookId === null) {
     return (
-      <div className="flex flex-col items-center gap-3 py-16 text-center text-muted">
-        <FiTrendingDown size={32} className="opacity-40" />
-        <p className="text-sm">No transactions yet. Add your first entry to see the cash book.</p>
+      <div className="flex flex-col gap-3 animate-fade-in pb-6">
+        {/* Books Header */}
+        <div className="flex items-center justify-between px-1">
+          <div>
+            <h2 className="text-sm font-bold tracking-tight text-foreground flex items-center gap-1.5">
+              <FiBookmark className="text-primary" size={16} /> Transaction Books
+            </h2>
+            <p className="text-[11px] text-muted">Tap a book to open transactions</p>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setIsCreatingBook(!isCreatingBook)}
+            className="flex items-center gap-1 rounded-xl bg-primary/10 px-2.5 py-1.5 text-xs font-bold text-primary hover:bg-primary hover:text-primary-foreground transition-all"
+          >
+            <FiPlus size={14} /> New Book
+          </button>
+        </div>
+
+        {/* Inline Create Form */}
+        {isCreatingBook && (
+          <form
+            onSubmit={handleCreateBook}
+            className="flex items-center gap-2 p-2.5 rounded-2xl border border-primary/40 bg-primary/5 shadow-xs animate-slide-down"
+          >
+            <input
+              type="text"
+              placeholder="Book name (e.g. Travel, Rent)..."
+              value={newBookName}
+              onChange={(e) => setNewBookName(e.target.value)}
+              className="flex-1 rounded-xl border border-border bg-surface px-3 py-2 text-xs font-medium text-foreground focus:border-primary focus:outline-none"
+              autoFocus
+            />
+            <button
+              type="submit"
+              disabled={createNotebookMutation.isPending || !newBookName.trim()}
+              className="flex items-center gap-1 rounded-xl bg-primary px-3 py-2 text-xs font-bold text-primary-foreground disabled:opacity-50"
+            >
+              <FiCheck size={14} /> Save
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsCreatingBook(false)}
+              className="p-1.5 text-muted hover:text-foreground"
+            >
+              <FiX size={15} />
+            </button>
+          </form>
+        )}
+
+        {/* Master Card: All Combined */}
+        <div
+          onClick={() => setSelectedNotebookId('ALL')}
+          className="group flex items-center justify-between rounded-2xl border border-primary/40 bg-surface p-3 transition-colors hover:border-primary cursor-pointer shadow-soft"
+        >
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary">
+              <FiLayers size={18} />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <p className="truncate text-xs font-bold text-foreground">All Ledgers Combined</p>
+                <span className="rounded bg-primary/10 px-1.5 py-0.2 text-[9px] font-bold text-primary">
+                  Master
+                </span>
+              </div>
+              <p className="text-[10px] text-muted">{transactions.length} entries total</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <p className={cn("text-xs font-bold", totalAllNet >= 0 ? "text-income" : "text-expense")}>
+              {totalAllNet >= 0 ? '+' : '-'}{formatCurrency(Math.abs(totalAllNet), currency)}
+            </p>
+            <FiChevronRight size={16} className="text-muted group-hover:text-primary transition-colors" />
+          </div>
+        </div>
+
+        {/* Compact Book Cards List */}
+        <div className="flex flex-col gap-2">
+          {userNotebooks.map((nb) => {
+            const stats = notebookStats.get(nb.id) ?? { count: 0, income: 0, expense: 0, net: 0 };
+
+            return (
+              <div
+                key={nb.id}
+                onClick={() => setSelectedNotebookId(nb.id)}
+                className="group flex items-center justify-between rounded-2xl border border-border bg-surface p-3 transition-colors hover:border-primary/50 cursor-pointer hover:shadow-soft"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-surface-2 text-foreground font-bold text-base">
+                    📘
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <p className="truncate text-xs font-bold text-foreground group-hover:text-primary transition-colors">
+                        {nb.name}
+                      </p>
+                      {nb.isAutoMonthly ? (
+                        <span className="rounded bg-emerald-500/10 px-1.5 py-0.2 text-[9px] font-bold text-emerald-600 dark:text-emerald-400">
+                          Monthly
+                        </span>
+                      ) : (
+                        <span className="rounded bg-surface-2 px-1.5 py-0.2 text-[9px] font-bold text-muted">
+                          Custom
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-[10px] text-muted">
+                      {stats.count} entries · {nb.recordId ?? 'NBK'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <p className={cn("text-xs font-bold", stats.net >= 0 ? "text-income" : "text-expense")}>
+                    {stats.net >= 0 ? '+' : '-'}{formatCurrency(Math.abs(stats.net), currency)}
+                  </p>
+                  <FiChevronRight size={16} className="text-muted group-hover:text-primary transition-colors" />
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
     );
   }
 
+  // LEVEL 2: INSIDE A BOOK — Renders TransactionCards EXACTLY like TransactionList!
   return (
-    <div className="flex flex-col gap-6">
-      {/* Summary strip */}
-      <div className="grid grid-cols-3 gap-3 rounded-2xl border border-border bg-surface p-4">
-        <div className="flex flex-col items-center gap-0.5">
-          <p className="text-xs text-muted">Total Income</p>
-          <p className="font-semibold text-income">{formatCurrency(totalIncome, currency)}</p>
-        </div>
-        <div className="flex flex-col items-center gap-0.5 border-x border-border">
-          <p className="text-xs text-muted">Total Expense</p>
-          <p className="font-semibold text-expense">{formatCurrency(totalExpense, currency)}</p>
-        </div>
-        <div className="flex flex-col items-center gap-0.5">
-          <p className="text-xs text-muted">Net Balance</p>
-          <p className={`font-semibold ${finalBalance >= 0 ? 'text-income' : 'text-expense'}`}>
-            {formatCurrency(Math.abs(finalBalance), currency)}
-          </p>
+    <div className="flex flex-col gap-4 animate-fade-in pb-6">
+      {/* Back button header */}
+      <div className="flex items-center justify-between border-b border-border pb-2.5">
+        <button
+          type="button"
+          onClick={() => setSelectedNotebookId(null)}
+          className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-surface px-3 py-1.5 text-xs font-bold text-foreground shadow-xs hover:bg-surface-2 active:scale-95 transition-all"
+        >
+          <FiArrowLeft size={15} />
+          <span>Back to Books</span>
+        </button>
+
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs font-bold text-foreground">
+            {selectedNotebookId === 'ALL'
+              ? 'All Ledgers'
+              : activeNotebook
+              ? activeNotebook.name
+              : 'Book'}
+          </span>
+          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
+            {filteredTransactions.length}
+          </span>
         </div>
       </div>
 
-      {/* Day-wise cash book entries (newest day first for readability) */}
-      {[...dayGroups].reverse().map((day) => (
-        <div key={day.dateKey} className="overflow-hidden rounded-2xl border border-border bg-surface">
-          {/* Day header */}
-          <div className="flex items-center justify-between border-b border-border bg-surface-2 px-4 py-2.5">
-            <span className="text-sm font-semibold">{day.label}</span>
-            <div className="flex items-center gap-3 text-xs">
-              <span className="flex items-center gap-1 text-income">
-                <FiTrendingUp size={12} /> {formatCurrency(day.dayIncome, currency)}
-              </span>
-              <span className="flex items-center gap-1 text-expense">
-                <FiTrendingDown size={12} /> {formatCurrency(day.dayExpense, currency)}
-              </span>
-            </div>
+      {/* Book Summary Card */}
+      <div className="rounded-2xl border border-border bg-surface p-3.5 shadow-soft">
+        <div className="grid grid-cols-3 gap-2 text-center divide-x divide-border/60">
+          <div>
+            <span className="text-[10px] font-bold uppercase text-income">Credit (In)</span>
+            <p className="text-xs font-bold text-income mt-0.5">{formatCurrency(totalIncome, currency)}</p>
           </div>
-
-          {/* Table header */}
-          <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-x-4 border-b border-border bg-surface/50 px-4 py-2 text-xs font-medium uppercase tracking-wider text-muted">
-            <span>Particulars</span>
-            <span className="w-20 text-right">Method</span>
-            <span className="w-24 text-right text-income">CR</span>
-            <span className="w-24 text-right text-expense">DR</span>
-            <span className="w-28 text-right">Balance</span>
+          <div>
+            <span className="text-[10px] font-bold uppercase text-expense">Debit (Out)</span>
+            <p className="text-xs font-bold text-expense mt-0.5">{formatCurrency(totalExpense, currency)}</p>
           </div>
-
-          {/* Opening balance row */}
-          <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-x-4 border-b border-border/50 px-4 py-2.5 text-xs text-muted">
-            <span className="font-medium italic">Opening Balance</span>
-            <span className="w-20 text-right">—</span>
-            <span className="w-24 text-right">—</span>
-            <span className="w-24 text-right">—</span>
-            <span className="w-28 text-right font-medium">
-              {formatCurrency(Math.abs(day.openingBalance), currency)}
-            </span>
-          </div>
-
-          {/* Transaction rows — show newest first within the day */}
-          {[...day.entries].reverse().map(({ tx, runningBalance }) => {
-            const cat = tx.category as Category;
-            const isIncome = tx.type === 'income';
-            return (
-              <div
-                key={tx.id}
-                className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-x-4 border-b border-border/30 px-4 py-3 text-sm transition-colors hover:bg-surface-2/50"
-              >
-                <div className="flex min-w-0 flex-col">
-                  <span className="truncate font-medium">{tx.title}</span>
-                  <span className="text-xs text-muted">
-                    {cat?.name ?? '—'} · {formatTimeLabel(tx.date)} · {tx.recordId}
-                  </span>
-                </div>
-                <span className="w-20 self-center text-right text-xs capitalize text-muted">
-                  {tx.paymentMethod.replace('_', ' ')}
-                </span>
-                <span className={`w-24 self-center text-right font-medium ${isIncome ? 'text-income' : 'text-muted opacity-30'}`}>
-                  {isIncome ? formatCurrency(tx.amount, currency) : '—'}
-                </span>
-                <span className={`w-24 self-center text-right font-medium ${!isIncome ? 'text-expense' : 'text-muted opacity-30'}`}>
-                  {!isIncome ? formatCurrency(tx.amount, currency) : '—'}
-                </span>
-                <span className={`w-28 self-center text-right font-semibold ${runningBalance >= 0 ? 'text-income' : 'text-expense'}`}>
-                  {formatCurrency(Math.abs(runningBalance), currency)}
-                </span>
-              </div>
-            );
-          })}
-
-          {/* Closing balance row */}
-          <div className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-x-4 bg-surface-2/40 px-4 py-2.5 text-xs">
-            <span className="font-semibold">Closing Balance</span>
-            <span className="w-20 text-right text-muted">—</span>
-            <span className="w-24 text-right font-semibold text-income">
-              {formatCurrency(day.dayIncome, currency)}
-            </span>
-            <span className="w-24 text-right font-semibold text-expense">
-              {formatCurrency(day.dayExpense, currency)}
-            </span>
-            <span className={`w-28 text-right font-bold ${day.closingBalance >= 0 ? 'text-income' : 'text-expense'}`}>
-              {formatCurrency(Math.abs(day.closingBalance), currency)}
-            </span>
+          <div>
+            <span className="text-[10px] font-bold uppercase text-muted">Net</span>
+            <p className={cn("text-xs font-bold mt-0.5", finalBalance >= 0 ? "text-income" : "text-expense")}>
+              {finalBalance >= 0 ? '+' : '-'}{formatCurrency(Math.abs(finalBalance), currency)}
+            </p>
           </div>
         </div>
-      ))}
+      </div>
+
+      {/* Empty State */}
+      {filteredTransactions.length === 0 ? (
+        <div className="flex flex-col items-center justify-center gap-2 py-12 text-center text-muted rounded-2xl border border-dashed border-border bg-surface-2/30 p-6">
+          <FiBook size={24} className="text-primary" />
+          <h3 className="text-xs font-bold text-foreground">No Transactions Found</h3>
+          <p className="text-[11px] text-muted max-w-xs">
+            No transaction records logged in "{activeNotebook?.name ?? 'this book'}".
+          </p>
+        </div>
+      ) : (
+        /* EXACT TRANSACTION LIST MATCH: Render Date groups with TransactionCards */
+        <div className="flex flex-col gap-4">
+          {dayGroups.map((group) => (
+            <div key={group.dateKey}>
+              {/* Date Group Header — Exact match to TransactionList */}
+              <div className="mb-2 flex items-center gap-2">
+                <span className="text-[11px] font-bold uppercase tracking-widest text-muted">
+                  {group.label}
+                </span>
+                <div className="flex-1 h-px bg-border/60" />
+              </div>
+
+              {/* Transaction Cards List */}
+              <div className="flex flex-col gap-2">
+                {group.items.map((tx) => (
+                  <TransactionCard
+                    key={tx.id}
+                    transaction={tx}
+                    currency={currency}
+                    onEdit={setEditing}
+                    onDelete={setDeleting}
+                    onView={setViewing}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Edit Transaction Bottom Sheet */}
+      <BottomSheet
+        isOpen={!!editing}
+        onClose={() => setEditing(null)}
+        title="Edit transaction"
+        showHeader={false}
+        className="h-[100dvh] max-h-[100dvh] rounded-none border-0 bg-surface p-0 sm:h-[92vh] sm:max-w-[430px] sm:rounded-2xl sm:border sm:p-0"
+      >
+        {editing && (
+          <TransactionForm
+            initialData={editing}
+            isSubmitting={updateTx.isPending}
+            onCancel={() => setEditing(null)}
+            onSubmit={(values) => {
+              const transactionId = getTransactionId(editing);
+              if (!transactionId) return;
+              updateTx.mutate(
+                { id: transactionId, input: values },
+                { onSuccess: () => setEditing(null) }
+              );
+            }}
+          />
+        )}
+      </BottomSheet>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={!!deleting}
+        title="Delete transaction?"
+        description="This entry will be permanently removed from your records."
+        confirmLabel="Delete"
+        isLoading={deleteTx.isPending}
+        onConfirm={() => {
+          const transactionId = getTransactionId(deleting);
+          if (!transactionId) return;
+          deleteTx.mutate(transactionId, { onSuccess: () => setDeleting(null) });
+        }}
+        onCancel={() => setDeleting(null)}
+      />
+
+      {/* View Detail Bottom Sheet */}
+      <BottomSheet
+        isOpen={!!viewing}
+        onClose={() => setViewing(null)}
+        title="Transaction details"
+        showHeader={false}
+        className="h-[100dvh] max-h-[100dvh] rounded-none border-0 bg-surface p-0 sm:h-[92vh] sm:max-w-[430px] sm:rounded-2xl sm:border sm:p-0"
+      >
+        {viewing && (
+          viewing.splitId ? (
+            <div className="flex h-full min-h-0 flex-col bg-surface text-foreground">
+              <div className="flex h-16 shrink-0 items-center justify-between border-b border-border bg-surface px-3 sm:h-[74px] sm:px-5">
+                <button
+                  type="button"
+                  onClick={() => setViewing(null)}
+                  className="grid h-10 w-10 shrink-0 place-items-center text-foreground sm:h-11 sm:w-11"
+                  aria-label="Back"
+                >
+                  <FiArrowLeft size={28} strokeWidth={2.2} />
+                </button>
+                <h2 className="min-w-0 flex-1 truncate px-2 text-center text-xl font-semibold leading-tight tracking-normal sm:px-4 sm:text-[28px] text-primary">
+                  Split Details
+                </h2>
+                <div className="w-10 sm:w-11" />
+              </div>
+
+              <div className="flex-1 min-h-0">
+                <SplitModalWrapper
+                  transaction={viewing}
+                  onClose={() => setViewing(null)}
+                  onEdit={() => {
+                    const txId = getTransactionId(viewing);
+                    setViewing(null);
+                    if (txId) {
+                      setEditing(viewing);
+                    }
+                  }}
+                />
+              </div>
+            </div>
+          ) : (
+            <TransactionForm
+              initialData={viewing}
+              readOnly={true}
+              onCancel={() => setViewing(null)}
+              onEdit={() => {
+                const txId = getTransactionId(viewing);
+                setViewing(null);
+                if (txId) {
+                  setEditing(viewing);
+                }
+              }}
+              onSubmit={() => {}}
+            />
+          )
+        )}
+      </BottomSheet>
+    </div>
+  );
+}
+
+function SplitModalWrapper({ transaction, onClose, onEdit }: { transaction: Transaction; onClose: () => void; onEdit: () => void }) {
+  const { data: split } = useSplit(transaction.splitId);
+  return split ? (
+    <SplitModal
+      split={split}
+      readOnly={true}
+      onClose={onClose}
+      onEdit={onEdit}
+    />
+  ) : (
+    <div className="flex items-center justify-center py-8">
+      <span className="text-sm text-muted">Loading split details...</span>
     </div>
   );
 }

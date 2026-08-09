@@ -2,8 +2,9 @@
 
 import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { FiX, FiCalendar, FiRotateCcw, FiCheck } from 'react-icons/fi';
+import { FiX, FiCalendar, FiRotateCcw, FiCheck, FiBook } from 'react-icons/fi';
 import { useCategories } from '@/hooks/useCategories';
+import { useNotebooks } from '@/hooks/useNotebooks';
 import { useUIStore } from '@/store/ui.store';
 import { WheelDatePickerModal } from '@/components/common/WheelDatePickerModal';
 import type { TransactionFilters } from '@/hooks/useTransactions';
@@ -17,7 +18,7 @@ interface FilterSortModalProps {
   totalRecords?: number;
 }
 
-type TabType = 'sort' | 'categories' | 'type' | 'date';
+type TabType = 'sort' | 'categories' | 'type' | 'date' | 'notebooks';
 
 const SORT_OPTIONS = [
   { id: 'date-desc', label: 'Relevance (Newest)' },
@@ -56,6 +57,8 @@ export function FilterSortModal({
   );
 
   const { data: categories = [] } = useCategories();
+  const { data: notebooksData } = useNotebooks();
+  const userNotebooks = notebooksData?.notebooks ?? [];
 
   const dateFilterType = useUIStore((s) => s.dateFilterType);
   const setDateFilterType = useUIStore((s) => s.setDateFilterType);
@@ -80,12 +83,14 @@ export function FilterSortModal({
   const sortActive = currentSortKey !== 'date-desc';
   const categoryActive = !!tempFilters.category;
   const typeActive = !!tempFilters.type;
+  const notebookActive = !!tempFilters.notebook;
   const dateActive = dateFilterType !== 'all' || !!tempFilters.from || !!tempFilters.to;
 
   const totalActiveCount =
     (sortActive ? 1 : 0) +
     (typeActive ? 1 : 0) +
     (categoryActive ? 1 : 0) +
+    (notebookActive ? 1 : 0) +
     (dateActive ? 1 : 0);
 
   const handleApply = () => {
@@ -100,6 +105,7 @@ export function FilterSortModal({
       sortOrder: 'desc',
       type: undefined,
       category: undefined,
+      notebook: undefined,
       from: undefined,
       to: undefined,
       page: 1,
@@ -239,6 +245,25 @@ export function FilterSortModal({
             >
               <span>Date Range</span>
               {dateActive && (
+                <span className="flex items-center justify-center w-4 h-4 rounded-full bg-emerald-500 text-[10px] text-white font-bold">
+                  1
+                </span>
+              )}
+            </button>
+
+            {/* Tab 5: Notebooks */}
+            <button
+              type="button"
+              onClick={() => setActiveTab('notebooks')}
+              className={cn(
+                'flex items-center justify-between w-full px-3 py-3 rounded-xl text-xs font-semibold transition-all text-left',
+                activeTab === 'notebooks'
+                  ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/30 shadow-xs'
+                  : 'text-muted hover:text-foreground hover:bg-surface-2/50 border border-transparent'
+              )}
+            >
+              <span>Notebooks</span>
+              {notebookActive && (
                 <span className="flex items-center justify-center w-4 h-4 rounded-full bg-emerald-500 text-[10px] text-white font-bold">
                   1
                 </span>
@@ -496,6 +521,72 @@ export function FilterSortModal({
                     </button>
                   </div>
                 </div>
+              </div>
+            )}
+
+            {/* Notebooks Tab Content */}
+            {activeTab === 'notebooks' && (
+              <div className="flex flex-col gap-2">
+                <label
+                  onClick={() => setTempFilters((prev) => ({ ...prev, notebook: undefined }))}
+                  className={cn(
+                    'flex items-center gap-3 cursor-pointer p-2.5 rounded-xl transition-all border',
+                    !tempFilters.notebook
+                      ? 'bg-emerald-500/8 border-emerald-500/30 text-emerald-500 font-semibold'
+                      : 'border-border/60 hover:bg-surface-2/40 text-foreground'
+                  )}
+                >
+                  <div
+                    className={cn(
+                      'w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all shrink-0',
+                      !tempFilters.notebook
+                        ? 'border-emerald-500 bg-emerald-500/10'
+                        : 'border-muted/40 bg-transparent'
+                    )}
+                  >
+                    {!tempFilters.notebook && (
+                      <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                    )}
+                  </div>
+                  <span className="text-sm font-medium">All Notebooks</span>
+                </label>
+
+                {userNotebooks.map((nb) => {
+                  const isSelected = tempFilters.notebook === nb.id;
+                  return (
+                    <label
+                      key={nb.id}
+                      onClick={() => setTempFilters((prev) => ({ ...prev, notebook: nb.id }))}
+                      className={cn(
+                        'flex items-center gap-3 cursor-pointer p-2.5 rounded-xl transition-all border',
+                        isSelected
+                          ? 'bg-emerald-500/8 border-emerald-500/30 text-emerald-500 font-semibold'
+                          : 'border-border/60 hover:bg-surface-2/40 text-foreground'
+                      )}
+                    >
+                      <div
+                        className={cn(
+                          'w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all shrink-0',
+                          isSelected
+                            ? 'border-emerald-500 bg-emerald-500/10'
+                            : 'border-muted/40 bg-transparent'
+                        )}
+                      >
+                        {isSelected && (
+                          <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-sm font-medium truncate">{nb.name}</span>
+                        {nb.isAutoMonthly && (
+                          <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-semibold shrink-0">
+                            Monthly
+                          </span>
+                        )}
+                      </div>
+                    </label>
+                  );
+                })}
               </div>
             )}
           </div>

@@ -1,4 +1,4 @@
-import type { Category, PaginatedResult, PaymentMethod, Transaction, TransactionType } from '@/types';
+import type { Category, Notebook, PaginatedResult, PaymentMethod, Transaction, TransactionType } from '@/types';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -68,6 +68,27 @@ export function normalizeCategory(value: unknown): Category | string {
   };
 }
 
+export function normalizeNotebook(value: unknown): Notebook | string | null {
+  if (!value) return null;
+  if (typeof value === 'string') return value;
+
+  const nb = toPlainObject(value);
+  const id = stringifyId(nb.id ?? nb._id);
+  if (!id && !nb.name) return stringifyId(value);
+
+  return {
+    id,
+    recordId: typeof nb.recordId === 'string' ? nb.recordId : id,
+    userId: stringifyId(nb.userId),
+    name: typeof nb.name === 'string' ? nb.name : '',
+    month: typeof nb.month === 'number' ? nb.month : undefined,
+    year: typeof nb.year === 'number' ? nb.year : undefined,
+    isAutoMonthly: Boolean(nb.isAutoMonthly),
+    color: typeof nb.color === 'string' ? nb.color : '#6366F1',
+    icon: typeof nb.icon === 'string' ? nb.icon : 'FiBook',
+  };
+}
+
 export function normalizeTransaction(value: unknown): Transaction {
   const transaction = toPlainObject(value);
 
@@ -83,6 +104,7 @@ export function normalizeTransaction(value: unknown): Transaction {
     paymentMethod: normalizePaymentMethod(transaction.paymentMethod),
     date: stringifyDate(transaction.date),
     note: typeof transaction.note === 'string' ? transaction.note : undefined,
+    notebook: normalizeNotebook(transaction.notebook),
     splitId: transaction.splitId ? stringifyId(transaction.splitId) : null,
     splitRecordId: typeof transaction.splitRecordId === 'string' ? transaction.splitRecordId : null,
     splitMembersCount: typeof transaction.splitMembersCount === 'number' ? transaction.splitMembersCount : null,

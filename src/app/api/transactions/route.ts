@@ -12,6 +12,7 @@ export const GET = withAuth(async (req, user) => {
       search: searchParams.get('search') ?? undefined,
       type: (searchParams.get('type') as 'income' | 'expense') ?? undefined,
       category: searchParams.get('category') ?? undefined,
+      notebook: searchParams.get('notebook') ?? undefined,
       from: searchParams.get('from') ?? undefined,
       to: searchParams.get('to') ?? undefined,
       sortBy: (searchParams.get('sortBy') as 'date' | 'amount') ?? 'date',

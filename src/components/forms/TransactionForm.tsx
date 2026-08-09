@@ -5,6 +5,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   FiArrowLeft,
+  FiBook,
   FiCalendar,
   FiCheck,
   FiChevronDown,
@@ -14,11 +15,13 @@ import {
   FiFileText,
   FiGrid,
   FiMic,
+  FiPlus,
   FiSettings,
 } from 'react-icons/fi';
 import { useEffect, useRef, useState } from 'react';
 import { transactionSchema, type TransactionFormValues } from '@/lib/validations/transaction.schema';
 import { useCategories } from '@/hooks/useCategories';
+import { useNotebooks, useCreateNotebook } from '@/hooks/useNotebooks';
 import { cn } from '@/lib/utils/cn';
 import { QuickCategoryPicker } from '@/components/forms/QuickCategoryPicker';
 import type { Transaction } from '@/types';
@@ -481,9 +484,30 @@ function FieldShell({ children, className }: { children: React.ReactNode; classN
 
 export function TransactionForm({ defaultType = 'expense', initialData, onSubmit, isSubmitting, onCancel, readOnly, onEdit }: TransactionFormProps) {
   const { data: categories = [] } = useCategories();
+  const { data: notebooksData } = useNotebooks();
+  const createNotebookMutation = useCreateNotebook();
   const [proofFile, setProofFile] = useState<File | null>(null);
   const [picker, setPicker] = useState<PickerType>(null);
   const proofInputRef = useRef<HTMLInputElement | null>(null);
+
+  const [notebookMode, setNotebookMode] = useState<'default' | 'other'>(() => {
+    if (initialData?.notebook) {
+      const isAuto = typeof initialData.notebook === 'object' ? initialData.notebook.isAutoMonthly : false;
+      return isAuto ? 'default' : 'other';
+    }
+    return 'default';
+  });
+  const [selectedNotebookId, setSelectedNotebookId] = useState<string>(() => {
+    if (initialData?.notebook) {
+      return typeof initialData.notebook === 'string' ? initialData.notebook : initialData.notebook.id;
+    }
+    return '';
+  });
+  const [isCreatingCustomBook, setIsCreatingCustomBook] = useState(false);
+  const [customBookName, setCustomBookName] = useState('');
+
+  const userNotebooks = notebooksData?.notebooks ?? [];
+  const activeMonthStatus = notebooksData?.activeMonthStatus;
 
   const {
     register,
@@ -523,6 +547,8 @@ export function TransactionForm({ defaultType = 'expense', initialData, onSubmit
   const title = readOnly ? 'Transaction Details' : `${initialData ? 'Edit' : 'Add'} ${isIncome ? 'Income' : 'Expense'} Entry`;
   const accent = isIncome ? 'text-income' : 'text-expense';
 
+  const activeMonthName = activeMonthStatus?.name ?? `${MONTHS[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
+
   function handleTypeChange(newType: 'income' | 'expense') {
     setValue('type', newType, { shouldDirty: true, shouldValidate: true });
     setValue('category', '', { shouldDirty: true, shouldValidate: true });
@@ -543,10 +569,29 @@ export function TransactionForm({ defaultType = 'expense', initialData, onSubmit
     setPicker(null);
   }
 
+  function handleCreateCustomBook() {
+    if (!customBookName.trim()) return;
+    createNotebookMutation.mutate(customBookName.trim(), {
+      onSuccess: (newBook) => {
+        setSelectedNotebookId(newBook.id);
+        setCustomBookName('');
+        setIsCreatingCustomBook(false);
+      },
+    });
+  }
+
   function serializeValues(values: TransactionFormValues): TransactionFormValues {
+    let finalNotebookId: string | null = null;
+    if (notebookMode === 'other' && selectedNotebookId) {
+      finalNotebookId = selectedNotebookId;
+    } else if (notebookMode === 'default' && activeMonthStatus?.notebook?.id) {
+      finalNotebookId = activeMonthStatus.notebook.id;
+    }
+
     return {
       ...values,
       date: parseDatetimeLocal(values.date).toISOString(),
+      notebookId: finalNotebookId,
     };
   }
 
@@ -751,6 +796,102 @@ export function TransactionForm({ defaultType = 'expense', initialData, onSubmit
               )}
             </AnimatePresence>
             {errors.paymentMethod && <p className="mt-2 text-sm font-medium text-expense">{errors.paymentMethod.message}</p>}
+          </div>
+
+          {/* Transaction Book Selection */}
+          <div className={cn("rounded-2xl border border-border/80 bg-surface-2/40 p-4", readOnly && "pointer-events-none opacity-80")}>
+            <p className="mb-2 text-sm font-bold text-foreground flex items-center gap-2">
+              <FiBook size={16} className="text-primary" />
+              Transaction Book / Ledger
+            </p>
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              <button
+                type="button"
+                onClick={() => !readOnly && setNotebookMode('default')}
+                className={cn(
+                  'flex items-center gap-2 rounded-xl border p-3 text-xs font-semibold text-left transition',
+                  notebookMode === 'default'
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-border bg-surface text-muted hover:text-foreground'
+                )}
+              >
+                <div className={cn('flex h-4 w-4 shrink-0 items-center justify-center rounded-full border', notebookMode === 'default' ? 'border-primary bg-primary text-primary-foreground' : 'border-muted')}>
+                  {notebookMode === 'default' && <FiCheck size={11} />}
+                </div>
+                <div className="min-w-0 flex-1 truncate">
+                  <p className="font-bold truncate">{activeMonthName}</p>
+                  <p className="text-[10px] text-muted truncate">Current Month Book</p>
+                </div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => !readOnly && setNotebookMode('other')}
+                className={cn(
+                  'flex items-center gap-2 rounded-xl border p-3 text-xs font-semibold text-left transition',
+                  notebookMode === 'other'
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-border bg-surface text-muted hover:text-foreground'
+                )}
+              >
+                <div className={cn('flex h-4 w-4 shrink-0 items-center justify-center rounded-full border', notebookMode === 'other' ? 'border-primary bg-primary text-primary-foreground' : 'border-muted')}>
+                  {notebookMode === 'other' && <FiCheck size={11} />}
+                </div>
+                <div className="min-w-0 flex-1 truncate">
+                  <p className="font-bold truncate">Other Book</p>
+                  <p className="text-[10px] text-muted truncate">Select or Create</p>
+                </div>
+              </button>
+            </div>
+
+            {notebookMode === 'other' && (
+              <div className="mt-3 space-y-2 pt-3 border-t border-border/60">
+                <div className="flex gap-2">
+                  <select
+                    disabled={readOnly}
+                    value={selectedNotebookId}
+                    onChange={(e) => setSelectedNotebookId(e.target.value)}
+                    className="flex-1 h-10 rounded-xl border border-border bg-surface px-3 text-xs font-medium text-foreground outline-none focus:border-primary"
+                  >
+                    <option value="">Select a book...</option>
+                    {userNotebooks.map((nb) => (
+                      <option key={nb.id} value={nb.id}>
+                        {nb.name} {nb.isAutoMonthly ? '(Monthly)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                  {!readOnly && (
+                    <button
+                      type="button"
+                      onClick={() => setIsCreatingCustomBook((prev) => !prev)}
+                      className="flex h-10 items-center gap-1 rounded-xl bg-primary/10 px-3 text-xs font-bold text-primary hover:bg-primary/20 transition"
+                    >
+                      <FiPlus size={14} /> New
+                    </button>
+                  )}
+                </div>
+
+                {isCreatingCustomBook && !readOnly && (
+                  <div className="flex gap-2 pt-1">
+                    <input
+                      type="text"
+                      placeholder="e.g. Travel 2026, Office..."
+                      value={customBookName}
+                      onChange={(e) => setCustomBookName(e.target.value)}
+                      className="flex-1 h-9 rounded-xl border border-border bg-surface px-3 text-xs text-foreground outline-none focus:border-primary"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleCreateCustomBook}
+                      disabled={createNotebookMutation.isPending || !customBookName.trim()}
+                      className="h-9 rounded-xl bg-primary px-3 text-xs font-bold text-primary-foreground disabled:opacity-50"
+                    >
+                      {createNotebookMutation.isPending ? 'Saving...' : 'Add'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {!readOnly && (

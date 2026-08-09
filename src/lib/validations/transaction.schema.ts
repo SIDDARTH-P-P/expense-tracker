@@ -9,6 +9,7 @@ export const transactionSchema = z.object({
   paymentMethod: z.enum(['cash', 'card', 'upi', 'bank_transfer', 'other']).default('card'),
   date: z.string().min(1, 'Date is required'),
   note: z.string().max(500).optional(),
+  notebookId: z.string().nullable().optional(),
 });
 
 export type TransactionFormValues = z.infer<typeof transactionSchema>;

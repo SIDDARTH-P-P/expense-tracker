@@ -31,6 +31,20 @@ export interface Category {
   updatedAt?: string;
 }
 
+export interface Notebook {
+  id: string;
+  recordId?: string;
+  userId: string;
+  name: string;
+  month?: number;
+  year?: number;
+  isAutoMonthly: boolean;
+  color?: string;
+  icon?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface Transaction {
   id: string;
   recordId: string;
@@ -43,6 +57,7 @@ export interface Transaction {
   paymentMethod: PaymentMethod;
   date: string;
   note?: string;
+  notebook?: Notebook | string | null;
   splitId?: string | null;
   splitRecordId?: string | null;
   splitMembersCount?: number | null;
