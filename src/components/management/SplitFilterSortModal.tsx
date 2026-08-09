@@ -71,19 +71,29 @@ export function SplitFilterSortModal({
   const setDateFilterType = useUIStore((s) => s.setDateFilterType);
   const setCustomDateRange = useUIStore((s) => s.setCustomDateRange);
 
+  const [render, setRender] = useState(false);
+  const [active, setActive] = useState(false);
+
   useEffect(() => {
     setMounted(true);
   }, []);
 
   useEffect(() => {
     if (isOpen) {
+      setRender(true);
       setTempFilters(filters);
       setStartDate(filters.from ? new Date(filters.from) : undefined);
       setEndDate(filters.to ? new Date(filters.to) : undefined);
+      const timer = setTimeout(() => setActive(true), 20);
+      return () => clearTimeout(timer);
+    } else {
+      setActive(false);
+      const timer = setTimeout(() => setRender(false), 300);
+      return () => clearTimeout(timer);
     }
   }, [isOpen, filters]);
 
-  if (!isOpen || !mounted) return null;
+  if (!render || !mounted) return null;
 
   // Active badges count calculation
   const currentSortKey = `${tempFilters.sortBy ?? 'date'}-${tempFilters.sortOrder ?? 'desc'}`;
@@ -148,9 +158,23 @@ export function SplitFilterSortModal({
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-xs p-0 sm:p-4 animate-fade-in">
-      {/* Modal Container — Fixed Height (h-[490px]) */}
-      <div className="w-full max-w-lg bg-surface text-foreground rounded-t-3xl sm:rounded-3xl border border-border shadow-2xl overflow-hidden flex flex-col h-[490px] max-h-[90vh] animate-slide-up">
+    <div
+      onClick={onClose}
+      className={cn(
+        'fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-xs p-0 sm:p-4 transition-opacity duration-300 ease-out',
+        active ? 'opacity-100' : 'opacity-0 pointer-events-none'
+      )}
+    >
+      {/* Modal Container — Smooth slide-up on mobile, scale & fade on desktop */}
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className={cn(
+          'w-full max-w-lg bg-surface text-foreground rounded-t-3xl sm:rounded-3xl border border-border shadow-2xl overflow-hidden flex flex-col h-[490px] max-h-[90vh] transition-all duration-300 ease-out transform',
+          active
+            ? 'translate-y-0 opacity-100 scale-100'
+            : 'translate-y-full sm:translate-y-6 opacity-0 sm:scale-95'
+        )}
+      >
         {/* Modal Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-surface-2/30 shrink-0">
           <div className="flex items-center gap-2.5">

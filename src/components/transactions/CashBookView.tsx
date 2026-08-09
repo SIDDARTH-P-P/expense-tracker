@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import { formatCurrency } from '@/lib/utils/format';
 import type { Transaction } from '@/types';
 import {
@@ -15,6 +16,7 @@ import {
   FiCheck,
   FiChevronRight,
   FiBookmark,
+  FiLoader,
 } from 'react-icons/fi';
 import { cn } from '@/lib/utils/cn';
 import { BottomSheet } from '@/components/common/BottomSheet';
@@ -22,6 +24,7 @@ import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { TransactionForm } from '@/components/forms/TransactionForm';
 import { SplitModal } from '@/components/management/SplitModal';
 import { TransactionCard } from '@/components/transactions/TransactionCard';
+import { TransactionRowSkeleton } from '@/components/common/Skeleton';
 import { useDeleteTransaction, useUpdateTransaction } from '@/hooks/useTransactions';
 import { useSplit } from '@/hooks/useManagement';
 import { useNotebooks, useCreateNotebook } from '@/hooks/useNotebooks';
@@ -29,6 +32,12 @@ import { useNotebooks, useCreateNotebook } from '@/hooks/useNotebooks';
 interface CashBookViewProps {
   transactions: Transaction[];
   currency: string;
+  selectedNotebookId?: string | null;
+  onSelectNotebook?: (id: string | null) => void;
+  isLoading?: boolean;
+  hasNextPage?: boolean;
+  isFetchingNextPage?: boolean;
+  onFetchNextPage?: () => void;
 }
 
 type TransactionWithMongoId = Transaction & { _id?: string | { toString(): string } };
@@ -41,10 +50,25 @@ function getTransactionId(transaction?: Transaction | null) {
   return mongoId?.toString() ?? '';
 }
 
-function formatDateLabel(dateStr: string): string {
-  if (!dateStr) return 'UNKNOWN DATE';
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return 'UNKNOWN DATE';
+function parseSafeDate(dateStr?: string | Date): Date | null {
+  if (!dateStr) return null;
+  if (dateStr instanceof Date) return isNaN(dateStr.getTime()) ? null : dateStr;
+
+  const str = String(dateStr).trim();
+  const match = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (match) {
+    const [, y, m, d] = match;
+    return new Date(Number(y), Number(m) - 1, Number(d));
+  }
+
+  const parsed = new Date(str);
+  return isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function formatDateLabel(dateStr?: string | Date): string {
+  const d = parseSafeDate(dateStr);
+  if (!d) return 'UNKNOWN DATE';
+
   const today = new Date();
   const yesterday = new Date(today);
   yesterday.setDate(today.getDate() - 1);
@@ -69,19 +93,40 @@ interface DayGroup {
   dayExpense: number;
 }
 
-export function CashBookView({ transactions, currency }: CashBookViewProps) {
+export function CashBookView({
+  transactions,
+  currency,
+  selectedNotebookId: propSelectedNotebookId,
+  onSelectNotebook,
+  isLoading,
+  hasNextPage,
+  isFetchingNextPage,
+  onFetchNextPage,
+}: CashBookViewProps) {
   const { data: notebooksData } = useNotebooks();
   const userNotebooks = notebooksData?.notebooks ?? [];
   const createNotebookMutation = useCreateNotebook();
 
   // null = viewing the Book List; string = selected book ID
-  const [selectedNotebookId, setSelectedNotebookId] = useState<string | null>(null);
+  const [internalNotebookId, setInternalNotebookId] = useState<string | null>(null);
+  const selectedNotebookId = propSelectedNotebookId !== undefined ? propSelectedNotebookId : internalNotebookId;
+  const setSelectedNotebookId = (id: string | null) => {
+    if (onSelectNotebook) {
+      onSelectNotebook(id);
+    }
+    setInternalNotebookId(id);
+  };
+
   const [isCreatingBook, setIsCreatingBook] = useState(false);
   const [newBookName, setNewBookName] = useState('');
 
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [deleting, setDeleting] = useState<Transaction | null>(null);
   const [viewing, setViewing] = useState<Transaction | null>(null);
+
+  // Incremental 20-item infinite scroll state inside book
+  const [visibleLimit, setVisibleLimit] = useState(20);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
 
   const updateTx = useUpdateTransaction();
   const deleteTx = useDeleteTransaction();
@@ -132,23 +177,75 @@ export function CashBookView({ transactions, currency }: CashBookViewProps) {
     });
   }, [transactions, selectedNotebookId]);
 
-  // Group filtered transactions by date
+  // Reset limit to 20 whenever active book or transaction count changes
+  useEffect(() => {
+    setVisibleLimit(20);
+  }, [selectedNotebookId, filteredTransactions.length]);
+
+  // Displayed transactions: in API pagination mode (onFetchNextPage present), display all API-fetched items directly.
+  // Otherwise fallback to 20-item client slicing.
+  const displayedTransactions = useMemo(() => {
+    if (onFetchNextPage) return filteredTransactions;
+    return filteredTransactions.slice(0, visibleLimit);
+  }, [filteredTransactions, visibleLimit, onFetchNextPage]);
+
+  // IntersectionObserver callback for next API page fetching or client slicing
+  const observerCallback = useCallback(
+    (entries: IntersectionObserverEntry[]) => {
+      if (entries[0]?.isIntersecting) {
+        if (onFetchNextPage) {
+          if (hasNextPage && !isFetchingNextPage) {
+            onFetchNextPage();
+          }
+        } else if (visibleLimit < filteredTransactions.length) {
+          setVisibleLimit((prev) => Math.min(prev + 20, filteredTransactions.length));
+        }
+      }
+    },
+    [hasNextPage, isFetchingNextPage, onFetchNextPage, filteredTransactions.length, visibleLimit]
+  );
+
+  useEffect(() => {
+    const el = loadMoreRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(observerCallback, { rootMargin: '200px' });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [observerCallback]);
+
+  // Group filtered & displayed transactions by date
   const { dayGroups, totalIncome, totalExpense, finalBalance } = useMemo(() => {
-    const sorted = [...filteredTransactions].sort(
-      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
-    );
+    const sortedAll = [...filteredTransactions].sort((a, b) => {
+      const dateA = parseSafeDate(a.date);
+      const dateB = parseSafeDate(b.date);
+      const timeA = dateA ? dateA.getTime() : 0;
+      const timeB = dateB ? dateB.getTime() : 0;
+      return timeB - timeA;
+    });
 
     let totalIncome = 0;
     let totalExpense = 0;
 
-    for (const tx of sorted) {
-      if (tx.type === 'income') totalIncome += tx.amount;
-      else totalExpense += tx.amount;
+    for (const tx of sortedAll) {
+      const amount = Number(tx.amount) || 0;
+      if (tx.type === 'income') totalIncome += amount;
+      else totalExpense += amount;
     }
 
+    const sortedDisplayed = [...displayedTransactions].sort((a, b) => {
+      const dateA = parseSafeDate(a.date);
+      const dateB = parseSafeDate(b.date);
+      const timeA = dateA ? dateA.getTime() : 0;
+      const timeB = dateB ? dateB.getTime() : 0;
+      return timeB - timeA;
+    });
+
     const map = new Map<string, Transaction[]>();
-    for (const tx of sorted) {
-      const dateKey = new Date(tx.date).toISOString().slice(0, 10);
+    for (const tx of sortedDisplayed) {
+      const d = parseSafeDate(tx.date);
+      const dateKey = d
+        ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+        : 'UNKNOWN';
       if (!map.has(dateKey)) map.set(dateKey, []);
       map.get(dateKey)!.push(tx);
     }
@@ -156,12 +253,12 @@ export function CashBookView({ transactions, currency }: CashBookViewProps) {
     const dayGroups: DayGroup[] = [];
 
     for (const [dateKey, items] of map.entries()) {
-      const dayIncome = items.reduce((s, e) => s + (e.type === 'income' ? e.amount : 0), 0);
-      const dayExpense = items.reduce((s, e) => s + (e.type === 'expense' ? e.amount : 0), 0);
+      const dayIncome = items.reduce((s, e) => s + (e.type === 'income' ? (Number(e.amount) || 0) : 0), 0);
+      const dayExpense = items.reduce((s, e) => s + (e.type === 'expense' ? (Number(e.amount) || 0) : 0), 0);
 
       dayGroups.push({
         dateKey,
-        label: formatDateLabel(items[0].date),
+        label: formatDateLabel(items[0]?.date),
         items,
         dayIncome,
         dayExpense,
@@ -169,7 +266,7 @@ export function CashBookView({ transactions, currency }: CashBookViewProps) {
     }
 
     return { dayGroups, totalIncome, totalExpense, finalBalance: totalIncome - totalExpense };
-  }, [filteredTransactions]);
+  }, [filteredTransactions, displayedTransactions]);
 
   const activeNotebook = userNotebooks.find((n) => n.id === selectedNotebookId);
 
@@ -185,6 +282,16 @@ export function CashBookView({ transactions, currency }: CashBookViewProps) {
     });
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex flex-col gap-2.5 pt-2">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <TransactionRowSkeleton key={i} />
+        ))}
+      </div>
+    );
+  }
+
   // LEVEL 1: COMPACT SLEEK BOOK LIST VIEW
   if (selectedNotebookId === null) {
     return (
@@ -195,7 +302,6 @@ export function CashBookView({ transactions, currency }: CashBookViewProps) {
             <h2 className="text-sm font-bold tracking-tight text-foreground flex items-center gap-1.5">
               <FiBookmark className="text-primary" size={16} /> Transaction Books
             </h2>
-            <p className="text-[11px] text-muted">Tap a book to open transactions</p>
           </div>
 
           <button
@@ -316,54 +422,9 @@ export function CashBookView({ transactions, currency }: CashBookViewProps) {
     );
   }
 
-  // LEVEL 2: INSIDE A BOOK — Renders TransactionCards EXACTLY like TransactionList!
+  // LEVEL 2: INSIDE A BOOK — Renders TransactionCards
   return (
-    <div className="flex flex-col gap-4 animate-fade-in pb-6">
-      {/* Back button header */}
-      <div className="flex items-center justify-between border-b border-border pb-2.5">
-        <button
-          type="button"
-          onClick={() => setSelectedNotebookId(null)}
-          className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-surface px-3 py-1.5 text-xs font-bold text-foreground shadow-xs hover:bg-surface-2 active:scale-95 transition-all"
-        >
-          <FiArrowLeft size={15} />
-          <span>Back to Books</span>
-        </button>
-
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs font-bold text-foreground">
-            {selectedNotebookId === 'ALL'
-              ? 'All Ledgers'
-              : activeNotebook
-              ? activeNotebook.name
-              : 'Book'}
-          </span>
-          <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-bold text-primary">
-            {filteredTransactions.length}
-          </span>
-        </div>
-      </div>
-
-      {/* Book Summary Card */}
-      <div className="rounded-2xl border border-border bg-surface p-3.5 shadow-soft">
-        <div className="grid grid-cols-3 gap-2 text-center divide-x divide-border/60">
-          <div>
-            <span className="text-[10px] font-bold uppercase text-income">Credit (In)</span>
-            <p className="text-xs font-bold text-income mt-0.5">{formatCurrency(totalIncome, currency)}</p>
-          </div>
-          <div>
-            <span className="text-[10px] font-bold uppercase text-expense">Debit (Out)</span>
-            <p className="text-xs font-bold text-expense mt-0.5">{formatCurrency(totalExpense, currency)}</p>
-          </div>
-          <div>
-            <span className="text-[10px] font-bold uppercase text-muted">Net</span>
-            <p className={cn("text-xs font-bold mt-0.5", finalBalance >= 0 ? "text-income" : "text-expense")}>
-              {finalBalance >= 0 ? '+' : '-'}{formatCurrency(Math.abs(finalBalance), currency)}
-            </p>
-          </div>
-        </div>
-      </div>
-
+    <div className="flex flex-col gap-3 animate-fade-in pb-6">
       {/* Empty State */}
       {filteredTransactions.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-2 py-12 text-center text-muted rounded-2xl border border-dashed border-border bg-surface-2/30 p-6">
@@ -388,9 +449,9 @@ export function CashBookView({ transactions, currency }: CashBookViewProps) {
 
               {/* Transaction Cards List */}
               <div className="flex flex-col gap-2">
-                {group.items.map((tx) => (
+                {group.items.map((tx, idx) => (
                   <TransactionCard
-                    key={tx.id}
+                    key={getTransactionId(tx) || tx.id || tx.recordId || `cb-tx-${group.dateKey}-${idx}`}
                     transaction={tx}
                     currency={currency}
                     onEdit={setEditing}
@@ -401,6 +462,27 @@ export function CashBookView({ transactions, currency }: CashBookViewProps) {
               </div>
             </div>
           ))}
+
+          {/* Dedicated sentinel div for IntersectionObserver */}
+          {(onFetchNextPage ? hasNextPage : visibleLimit < filteredTransactions.length) && (
+            <div ref={loadMoreRef} className="h-4 w-full" />
+          )}
+
+          {/* Infinite Scroll Loading Spinner */}
+          {(isFetchingNextPage || (!onFetchNextPage && visibleLimit < filteredTransactions.length)) ? (
+            <div className="flex justify-center py-4">
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ repeat: Infinity, duration: 1, ease: 'linear' }}
+              >
+                <FiLoader size={20} className="text-primary" />
+              </motion.div>
+            </div>
+          ) : (onFetchNextPage ? (!hasNextPage && !isFetchingNextPage && filteredTransactions.length > 0) : filteredTransactions.length > 20) ? (
+            <p className="py-4 text-center text-xs text-muted">
+              All {filteredTransactions.length} transactions loaded
+            </p>
+          ) : null}
         </div>
       )}
 

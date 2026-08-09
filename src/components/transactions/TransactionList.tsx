@@ -137,7 +137,7 @@ export function TransactionList({
           <div className="flex flex-col gap-2">
             {items.map((tx, i) => (
               <motion.div
-                key={tx.id}
+                key={getTransactionId(tx) || tx.id || tx.recordId || `tx-${gi}-${i}`}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: Math.min(gi * 0.03 + i * 0.03, 0.25), duration: 0.25 }}

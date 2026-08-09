@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import { FiList, FiBook } from 'react-icons/fi';
+import { FiList, FiBook, FiArrowLeft } from 'react-icons/fi';
 import { useInfiniteTransactions } from '@/hooks/useTransactions';
 import { useCurrentUser } from '@/hooks/useAuth';
 import { useNotebooks } from '@/hooks/useNotebooks';
@@ -16,18 +16,36 @@ import { useUIStore } from '@/store/ui.store';
 import type { TransactionFilters } from '@/hooks/useTransactions';
 import { cn } from '@/lib/utils/cn';
 
+import { formatCurrency } from '@/lib/utils/format';
+
 type ViewMode = 'list' | 'cashbook';
 
 export default function TransactionsPage() {
   const { data: user } = useCurrentUser();
   const { data: notebooksData } = useNotebooks();
   const [viewMode, setViewMode] = useState<ViewMode>('list');
+  const [selectedNotebookId, setSelectedNotebookId] = useState<string | null>(null);
   const [filters, setFilters] = useState<Omit<TransactionFilters, 'page'>>({});
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [hasPromptedModal, setHasPromptedModal] = useState(false);
   const [isMonthlyBookModalOpen, setIsMonthlyBookModalOpen] = useState(false);
 
   const activeMonthStatus = notebooksData?.activeMonthStatus;
+  const userNotebooks = notebooksData?.notebooks ?? [];
+
+  const isBookOpen = viewMode === 'cashbook' && selectedNotebookId !== null;
+
+  const activeNotebook = useMemo(
+    () => userNotebooks.find((n) => n.id === selectedNotebookId),
+    [userNotebooks, selectedNotebookId]
+  );
+
+  const activeBookName = useMemo(() => {
+    if (!selectedNotebookId) return '';
+    if (selectedNotebookId === 'ALL') return 'All Ledgers Combined';
+    if (selectedNotebookId === 'UNASSIGNED') return 'Unassigned Transactions';
+    return activeNotebook?.name ?? 'Book';
+  }, [selectedNotebookId, activeNotebook]);
 
   useEffect(() => {
     if (activeMonthStatus && !activeMonthStatus.exists && !hasPromptedModal) {
@@ -67,13 +85,24 @@ export default function TransactionsPage() {
     };
   }, [dateFilterType, selectedMonth, selectedYear, customStartDate, customEndDate, filters.from, filters.to]);
 
-  const activeFilters = { 
-    ...filters, 
-    ...dateParams,
-    search: debouncedSearch 
-  };
+  const activeFilters = useMemo(
+    () => ({
+      ...filters,
+      ...dateParams,
+      search: debouncedSearch,
+    }),
+    [filters, dateParams, debouncedSearch]
+  );
 
-  // Infinite scroll for list view
+  const bookFilters = useMemo(
+    () => ({
+      ...activeFilters,
+      notebook: selectedNotebookId ?? undefined,
+    }),
+    [activeFilters, selectedNotebookId]
+  );
+
+  // Infinite scroll query — pass bookFilters when inside a book in cashbook mode
   const {
     data: infiniteData,
     isLoading: listLoading,
@@ -82,74 +111,186 @@ export default function TransactionsPage() {
     hasNextPage,
     fetchNextPage,
     refetch: refetchList,
-  } = useInfiniteTransactions(activeFilters);
+  } = useInfiniteTransactions(
+    viewMode === 'cashbook' && selectedNotebookId !== null ? bookFilters : activeFilters
+  );
 
-  // All-at-once for cash book view or export report
-  const { data: cashbookData } = useTransactions(
+  // Refetch query on notebook or view mode change to reset pagination
+  useEffect(() => {
+    if (viewMode === 'cashbook' && selectedNotebookId !== null) {
+      refetchList();
+    }
+  }, [selectedNotebookId, viewMode, refetchList]);
+
+  // All-at-once for export report or book list shelf
+  const { data: cashbookData, isLoading: cashbookLoading } = useTransactions(
     { ...activeFilters, page: 1, pageSize: 1000 },
-    { enabled: viewMode === 'cashbook' || isExportModalOpen }
+    { enabled: (viewMode === 'cashbook' && selectedNotebookId === null) || isExportModalOpen }
   );
 
   const totalCount = infiniteData?.pages[0]?.total ?? 0;
   const allFilteredItems = cashbookData?.items ?? infiniteData?.pages.flatMap((p) => p.items) ?? [];
 
+  const activeBookTxCount = useMemo(() => {
+    if (!selectedNotebookId) return 0;
+    if (selectedNotebookId === 'ALL') return allFilteredItems.length;
+    if (selectedNotebookId === 'UNASSIGNED') return allFilteredItems.filter((tx) => !tx.notebook).length;
+    return allFilteredItems.filter((tx) => {
+      const nbId = typeof tx.notebook === 'object' ? tx.notebook?.id : tx.notebook;
+      return nbId === selectedNotebookId;
+    }).length;
+  }, [selectedNotebookId, allFilteredItems]);
+
+  const { bookIncome, bookExpense, bookNet } = useMemo(() => {
+    if (!selectedNotebookId) return { bookIncome: 0, bookExpense: 0, bookNet: 0 };
+    let filtered = allFilteredItems;
+    if (selectedNotebookId !== 'ALL') {
+      if (selectedNotebookId === 'UNASSIGNED') {
+        filtered = allFilteredItems.filter((tx) => !tx.notebook);
+      } else {
+        filtered = allFilteredItems.filter((tx) => {
+          const nbId = typeof tx.notebook === 'object' ? tx.notebook?.id : tx.notebook;
+          return nbId === selectedNotebookId;
+        });
+      }
+    }
+    let inc = 0;
+    let exp = 0;
+    for (const tx of filtered) {
+      const amt = Number(tx.amount) || 0;
+      if (tx.type === 'income') inc += amt;
+      else exp += amt;
+    }
+    return { bookIncome: inc, bookExpense: exp, bookNet: inc - exp };
+  }, [selectedNotebookId, allFilteredItems]);
+
+  const handleViewModeChange = (mode: ViewMode) => {
+    setViewMode(mode);
+    if (mode === 'list') {
+      setSelectedNotebookId(null);
+    }
+  };
+
   return (
     <div className="mx-auto max-w-3xl">
-      {/* Sticky header: title, view toggle, filters */}
+      {/* Sticky header: title / book header, view toggle, filters, summary card */}
       <div className="sticky top-0 z-20 -mx-4 border-b border-border bg-background px-4 pb-3 pt-3 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-        {/* Page header */}
-        <div className="mb-3 flex items-center justify-between gap-3">
-          <div>
-            <h2 className="font-display text-xl font-bold">Transactions</h2>
-            <p className="text-xs text-muted mt-0.5">{totalCount} total records</p>
-          </div>
+        {/* Page header / Book header section */}
+        {isBookOpen ? (
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <button
+                type="button"
+                onClick={() => setSelectedNotebookId(null)}
+                className="inline-flex h-9 items-center gap-1.5 rounded-xl border border-border bg-surface px-2.5 text-xs font-bold text-foreground shadow-xs hover:bg-surface-2 active:scale-95 transition-all shrink-0"
+                title="Back to Books shelf"
+              >
+                <FiArrowLeft size={16} />
+                <span className="hidden sm:inline">Back</span>
+              </button>
 
-          <div className="flex items-center gap-2">
-            {/* View toggle */}
-            <div className="flex items-center rounded-2xl border border-border bg-surface p-1 shadow-soft">
-              <button
-                onClick={() => setViewMode('list')}
-                title="List View"
-                className={cn(
-                  'flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all duration-200',
-                  viewMode === 'list'
-                    ? 'bg-primary text-primary-foreground shadow-sm'
-                    : 'text-muted hover:text-foreground'
-                )}
-              >
-                <FiList size={13} /> List
-              </button>
-              <button
-                onClick={() => setViewMode('cashbook')}
-                title="Cash Book"
-                className={cn(
-                  'flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all duration-200',
-                  viewMode === 'cashbook'
-                    ? 'bg-primary text-primary-foreground shadow-sm'
-                    : 'text-muted hover:text-foreground'
-                )}
-              >
-                <FiBook size={13} /> Book
-              </button>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <h2 className="font-display text-lg font-bold truncate text-foreground flex items-center gap-1.5">
+                    <span>📘</span> {activeBookName}
+                  </h2>
+                  {activeNotebook?.isAutoMonthly ? (
+                    <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 shrink-0">
+                      Monthly
+                    </span>
+                  ) : null}
+                </div>
+                <p className="text-xs text-muted mt-0.5">{activeBookTxCount} entries logged in book</p>
+              </div>
             </div>
           </div>
-        </div>
+        ) : (
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <h2 className="font-display text-xl font-bold">Transactions</h2>
+              <p className="text-xs text-muted mt-0.5">{totalCount} total records</p>
+            </div>
 
-        {/* Filters */}
+            <div className="flex items-center gap-2">
+              {/* View toggle */}
+              <div className="flex items-center rounded-2xl border border-border bg-surface p-1 shadow-soft">
+                <button
+                  onClick={() => handleViewModeChange('list')}
+                  title="List View"
+                  className={cn(
+                    'flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all duration-200',
+                    viewMode === 'list'
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'text-muted hover:text-foreground'
+                  )}
+                >
+                  <FiList size={13} /> List
+                </button>
+                <button
+                  onClick={() => handleViewModeChange('cashbook')}
+                  title="Cash Book"
+                  className={cn(
+                    'flex items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-semibold transition-all duration-200',
+                    viewMode === 'cashbook'
+                      ? 'bg-primary text-primary-foreground shadow-sm'
+                      : 'text-muted hover:text-foreground'
+                  )}
+                >
+                  <FiBook size={13} /> Book
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Filters — Hide report download option in cash book mode */}
         <FilterBar
           filters={filters}
           onChange={(f) => setFilters(f)}
-          totalRecords={totalCount}
-          onOpenExport={() => setIsExportModalOpen(true)}
+          totalRecords={isBookOpen ? activeBookTxCount : totalCount}
+          onOpenExport={viewMode === 'cashbook' ? undefined : () => setIsExportModalOpen(true)}
+          hideExport={viewMode === 'cashbook'}
         />
+
+        {/* 100% Truly Sticky Book Summary Card */}
+        {isBookOpen && (
+          <div className="mt-2.5 rounded-xl border border-border bg-surface p-2 shadow-soft">
+            <div className="grid grid-cols-3 gap-1 text-center divide-x divide-border/60">
+              <div className="px-1">
+                <span className="text-[9px] font-extrabold uppercase tracking-wider text-income block">CREDIT (IN)</span>
+                <p className="text-xs font-extrabold text-income mt-0.5">{formatCurrency(bookIncome, user?.currency ?? 'USD')}</p>
+              </div>
+              <div className="px-1">
+                <span className="text-[9px] font-extrabold uppercase tracking-wider text-expense block">DEBIT (OUT)</span>
+                <p className="text-xs font-extrabold text-expense mt-0.5">{formatCurrency(bookExpense, user?.currency ?? 'USD')}</p>
+              </div>
+              <div className="px-1">
+                <span className="text-[9px] font-extrabold uppercase tracking-wider text-muted block">NET</span>
+                <p className={cn("text-xs font-extrabold mt-0.5", bookNet >= 0 ? "text-income" : "text-expense")}>
+                  {bookNet >= 0 ? '+' : '-'}{formatCurrency(Math.abs(bookNet), user?.currency ?? 'USD')}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Content */}
       <div className="pt-3">
         {viewMode === 'cashbook' ? (
           <CashBookView
-            transactions={allFilteredItems}
+            transactions={
+              isBookOpen
+                ? (infiniteData?.pages.flatMap((p) => p.items) ?? [])
+                : allFilteredItems
+            }
             currency={user?.currency ?? 'USD'}
+            selectedNotebookId={selectedNotebookId}
+            onSelectNotebook={setSelectedNotebookId}
+            isLoading={isBookOpen ? listLoading : cashbookLoading}
+            hasNextPage={isBookOpen ? !!hasNextPage : false}
+            isFetchingNextPage={isBookOpen ? isFetchingNextPage : false}
+            onFetchNextPage={fetchNextPage}
           />
         ) : (
           <TransactionList

@@ -52,7 +52,13 @@ export const transactionRepository = {
     }
     if (type) filter.type = type;
     if (category) filter.category = category;
-    if (notebook) filter.notebook = notebook;
+    if (notebook && notebook !== 'ALL') {
+      if (notebook === 'UNASSIGNED') {
+        filter.notebook = null;
+      } else {
+        filter.notebook = notebook;
+      }
+    }
     if (from || to) {
       filter.date = {};
       if (from) filter.date.$gte = new Date(from);

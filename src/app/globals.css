@@ -198,13 +198,28 @@ input[type='number']::-webkit-inner-spin-button {
   from { opacity: 0; }
   to   { opacity: 1; }
 }
+@keyframes fade-out {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(100%); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes slide-down {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(100%); }
+}
 @keyframes pulse-ring {
   0%   { transform: scale(1); opacity: 0.6; }
   100% { transform: scale(1.6); opacity: 0; }
 }
 
-.animate-fade-up  { animation: fade-up 0.4s ease forwards; }
-.animate-fade-in  { animation: fade-in 0.3s ease forwards; }
+.animate-fade-up    { animation: fade-up 0.4s ease forwards; }
+.animate-fade-in    { animation: fade-in 0.3s ease forwards; }
+.animate-fade-out   { animation: fade-out 0.25s ease forwards; }
+.animate-slide-up   { animation: slide-up 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+.animate-slide-down { animation: slide-down 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
 
 /* ─── Reduced motion ────────────────────────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
