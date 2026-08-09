@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { formatCurrency } from '@/lib/utils/format';
-import type { Transaction } from '@/types';
+import type { Transaction, Notebook } from '@/types';
 import {
   FiBook,
   FiCalendar,
@@ -18,16 +18,18 @@ import {
   FiBookmark,
   FiLoader,
 } from 'react-icons/fi';
+import { BsPinAngleFill, BsPinAngle } from 'react-icons/bs';
 import { cn } from '@/lib/utils/cn';
 import { BottomSheet } from '@/components/common/BottomSheet';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
+import { CreateBookModal } from '@/components/notebooks/CreateBookModal';
 import { TransactionForm } from '@/components/forms/TransactionForm';
 import { SplitModal } from '@/components/management/SplitModal';
 import { TransactionCard } from '@/components/transactions/TransactionCard';
 import { TransactionRowSkeleton } from '@/components/common/Skeleton';
 import { useDeleteTransaction, useUpdateTransaction } from '@/hooks/useTransactions';
 import { useSplit } from '@/hooks/useManagement';
-import { useNotebooks, useCreateNotebook } from '@/hooks/useNotebooks';
+import { useNotebooks, useCreateNotebook, useTogglePinNotebook } from '@/hooks/useNotebooks';
 
 interface CashBookViewProps {
   transactions: Transaction[];
@@ -106,6 +108,15 @@ export function CashBookView({
   const { data: notebooksData } = useNotebooks();
   const userNotebooks = notebooksData?.notebooks ?? [];
   const createNotebookMutation = useCreateNotebook();
+  // Sort user notebooks so PINNED BOOKS SHOW FIRST
+  const sortedUserNotebooks = useMemo(() => {
+    return [...userNotebooks].sort((a, b) => {
+      const pinA = (a.isPinned || a.isStarred) ? 1 : 0;
+      const pinB = (b.isPinned || b.isStarred) ? 1 : 0;
+      if (pinB !== pinA) return pinB - pinA;
+      return 0;
+    });
+  }, [userNotebooks]);
 
   // null = viewing the Book List; string = selected book ID
   const [internalNotebookId, setInternalNotebookId] = useState<string | null>(null);
@@ -118,11 +129,12 @@ export function CashBookView({
   };
 
   const [isCreatingBook, setIsCreatingBook] = useState(false);
-  const [newBookName, setNewBookName] = useState('');
 
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [deleting, setDeleting] = useState<Transaction | null>(null);
   const [viewing, setViewing] = useState<Transaction | null>(null);
+  const [pinningNotebook, setPinningNotebook] = useState<Notebook | null>(null);
+  const togglePinMutation = useTogglePinNotebook();
 
   // Incremental 20-item infinite scroll state inside book
   const [visibleLimit, setVisibleLimit] = useState(20);
@@ -270,17 +282,7 @@ export function CashBookView({
 
   const activeNotebook = userNotebooks.find((n) => n.id === selectedNotebookId);
 
-  const handleCreateBook = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!newBookName.trim()) return;
-    createNotebookMutation.mutate(newBookName.trim(), {
-      onSuccess: (created) => {
-        setNewBookName('');
-        setIsCreatingBook(false);
-        setSelectedNotebookId(created.id);
-      },
-    });
-  };
+
 
   if (isLoading) {
     return (
@@ -292,139 +294,127 @@ export function CashBookView({
     );
   }
 
-  // LEVEL 1: COMPACT SLEEK BOOK LIST VIEW
-  if (selectedNotebookId === null) {
-    return (
-      <div className="flex flex-col gap-3 animate-fade-in pb-6">
-        {/* Books Header */}
-        <div className="flex items-center justify-between px-1">
-          <div>
-            <h2 className="text-sm font-bold tracking-tight text-foreground flex items-center gap-1.5">
-              <FiBookmark className="text-primary" size={16} /> Transaction Books
-            </h2>
-          </div>
+  return (
+    <>
+      {selectedNotebookId === null ? (
+        /* LEVEL 1: COMPACT SLEEK BOOK LIST VIEW */
+        <div className="flex flex-col gap-3 animate-fade-in pb-6">
+          {/* Books Header */}
+          <div className="flex items-center justify-between px-1">
+            <div>
+              <h2 className="text-sm font-bold tracking-tight text-foreground flex items-center gap-1.5">
+                <FiBookmark className="text-primary" size={16} /> Transaction Books
+              </h2>
+            </div>
 
-          <button
-            type="button"
-            onClick={() => setIsCreatingBook(!isCreatingBook)}
-            className="flex items-center gap-1 rounded-xl bg-primary/10 px-2.5 py-1.5 text-xs font-bold text-primary hover:bg-primary hover:text-primary-foreground transition-all"
-          >
-            <FiPlus size={14} /> New Book
-          </button>
-        </div>
-
-        {/* Inline Create Form */}
-        {isCreatingBook && (
-          <form
-            onSubmit={handleCreateBook}
-            className="flex items-center gap-2 p-2.5 rounded-2xl border border-primary/40 bg-primary/5 shadow-xs animate-slide-down"
-          >
-            <input
-              type="text"
-              placeholder="Book name (e.g. Travel, Rent)..."
-              value={newBookName}
-              onChange={(e) => setNewBookName(e.target.value)}
-              className="flex-1 rounded-xl border border-border bg-surface px-3 py-2 text-xs font-medium text-foreground focus:border-primary focus:outline-none"
-              autoFocus
-            />
-            <button
-              type="submit"
-              disabled={createNotebookMutation.isPending || !newBookName.trim()}
-              className="flex items-center gap-1 rounded-xl bg-primary px-3 py-2 text-xs font-bold text-primary-foreground disabled:opacity-50"
-            >
-              <FiCheck size={14} /> Save
-            </button>
             <button
               type="button"
-              onClick={() => setIsCreatingBook(false)}
-              className="p-1.5 text-muted hover:text-foreground"
+              onClick={() => setIsCreatingBook(true)}
+              className="flex items-center gap-1 rounded-xl bg-primary/10 px-2.5 py-1.5 text-xs font-bold text-primary hover:bg-primary hover:text-primary-foreground transition-all"
             >
-              <FiX size={15} />
+              <FiPlus size={14} /> New Book
             </button>
-          </form>
-        )}
+          </div>
 
-        {/* Master Card: All Combined */}
-        <div
-          onClick={() => setSelectedNotebookId('ALL')}
-          className="group flex items-center justify-between rounded-2xl border border-primary/40 bg-surface p-3 transition-colors hover:border-primary cursor-pointer shadow-soft"
-        >
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary">
-              <FiLayers size={18} />
-            </div>
-            <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
-                <p className="truncate text-xs font-bold text-foreground">All Ledgers Combined</p>
-                <span className="rounded bg-primary/10 px-1.5 py-0.2 text-[9px] font-bold text-primary">
-                  Master
-                </span>
+          {/* Master Card: All Combined */}
+          <div
+            onClick={() => setSelectedNotebookId('ALL')}
+            className="group flex items-center justify-between rounded-2xl border border-primary/40 bg-surface p-3 transition-colors hover:border-primary cursor-pointer shadow-soft"
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-primary/15 text-primary">
+                <FiLayers size={18} />
               </div>
-              <p className="text-[10px] text-muted">{transactions.length} entries total</p>
+              <div className="min-w-0">
+                <div className="flex items-center gap-1.5">
+                  <p className="truncate text-xs font-bold text-foreground">All Ledgers Combined</p>
+                  <span className="rounded bg-primary/10 px-1.5 py-0.2 text-[9px] font-bold text-primary">
+                    Master
+                  </span>
+                </div>
+                <p className="text-[10px] text-muted">{transactions.length} entries total</p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0">
+              <p className={cn("text-xs font-bold", totalAllNet >= 0 ? "text-income" : "text-expense")}>
+                {totalAllNet >= 0 ? '+' : '-'}{formatCurrency(Math.abs(totalAllNet), currency)}
+              </p>
+              <FiChevronRight size={16} className="text-muted group-hover:text-primary transition-colors" />
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            <p className={cn("text-xs font-bold", totalAllNet >= 0 ? "text-income" : "text-expense")}>
-              {totalAllNet >= 0 ? '+' : '-'}{formatCurrency(Math.abs(totalAllNet), currency)}
-            </p>
-            <FiChevronRight size={16} className="text-muted group-hover:text-primary transition-colors" />
-          </div>
-        </div>
+          {/* Compact Book Cards List */}
+          <div className="flex flex-col gap-2">
+            {sortedUserNotebooks.map((nb) => {
+              const stats = notebookStats.get(nb.id) ?? { count: 0, income: 0, expense: 0, net: 0 };
+              const isPinned = Boolean(nb.isPinned || nb.isStarred);
 
-        {/* Compact Book Cards List */}
-        <div className="flex flex-col gap-2">
-          {userNotebooks.map((nb) => {
-            const stats = notebookStats.get(nb.id) ?? { count: 0, income: 0, expense: 0, net: 0 };
-
-            return (
-              <div
-                key={nb.id}
-                onClick={() => setSelectedNotebookId(nb.id)}
-                className="group flex items-center justify-between rounded-2xl border border-border bg-surface p-3 transition-colors hover:border-primary/50 cursor-pointer hover:shadow-soft"
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-surface-2 text-foreground font-bold text-base">
-                    📘
-                  </div>
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-1.5">
-                      <p className="truncate text-xs font-bold text-foreground group-hover:text-primary transition-colors">
-                        {nb.name}
-                      </p>
-                      {nb.isAutoMonthly ? (
-                        <span className="rounded bg-emerald-500/10 px-1.5 py-0.2 text-[9px] font-bold text-emerald-600 dark:text-emerald-400">
-                          Monthly
-                        </span>
-                      ) : (
-                        <span className="rounded bg-surface-2 px-1.5 py-0.2 text-[9px] font-bold text-muted">
-                          Custom
-                        </span>
-                      )}
+              return (
+                <div
+                  key={nb.id}
+                  onClick={() => setSelectedNotebookId(nb.id)}
+                  className="group flex items-center justify-between rounded-2xl border border-border bg-surface p-3 transition-all hover:border-primary/50 cursor-pointer hover:shadow-soft"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-surface-2 text-foreground font-bold text-base">
+                      📘
                     </div>
-                    <p className="text-[10px] text-muted">
-                      {stats.count} entries · {nb.recordId ?? 'NBK'}
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <p className="truncate text-xs font-bold text-foreground group-hover:text-primary transition-colors">
+                          {nb.name}
+                        </p>
+                        {isPinned && (
+                          <span className="rounded bg-amber-400/20 px-1.5 py-0.2 text-[9px] font-bold text-amber-600 dark:text-amber-400 flex items-center gap-0.5">
+                            <BsPinAngleFill size={10} className="text-amber-400 fill-amber-400" /> Pinned
+                          </span>
+                        )}
+                        {nb.isAutoMonthly ? (
+                          <span className="rounded bg-emerald-500/10 px-1.5 py-0.2 text-[9px] font-bold text-emerald-600 dark:text-emerald-400">
+                            Monthly
+                          </span>
+                        ) : (
+                          <span className="rounded bg-surface-2 px-1.5 py-0.2 text-[9px] font-bold text-muted">
+                            Custom
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-muted">
+                        {stats.count} entries · {nb.recordId ?? 'NBK'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setPinningNotebook(nb);
+                      }}
+                      className="grid h-8 w-8 place-items-center rounded-xl hover:bg-surface-2 transition-colors"
+                      title={isPinned ? 'Unpin book' : 'Pin book'}
+                    >
+                      {isPinned ? (
+                        <BsPinAngleFill size={16} className="text-amber-400 fill-amber-400" />
+                      ) : (
+                        <BsPinAngle size={16} className="text-muted hover:text-amber-400" />
+                      )}
+                    </button>
+                    <p className={cn("text-xs font-bold", stats.net >= 0 ? "text-income" : "text-expense")}>
+                      {stats.net >= 0 ? '+' : '-'}{formatCurrency(Math.abs(stats.net), currency)}
                     </p>
+                    <FiChevronRight size={16} className="text-muted group-hover:text-primary transition-colors" />
                   </div>
                 </div>
-
-                <div className="flex items-center gap-2 shrink-0">
-                  <p className={cn("text-xs font-bold", stats.net >= 0 ? "text-income" : "text-expense")}>
-                    {stats.net >= 0 ? '+' : '-'}{formatCurrency(Math.abs(stats.net), currency)}
-                  </p>
-                  <FiChevronRight size={16} className="text-muted group-hover:text-primary transition-colors" />
-                </div>
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
-      </div>
-    );
-  }
-
-  // LEVEL 2: INSIDE A BOOK — Renders TransactionCards
-  return (
-    <div className="flex flex-col gap-3 animate-fade-in pb-6">
+      ) : (
+        /* LEVEL 2: INSIDE A BOOK — Renders TransactionCards */
+        <div className="flex flex-col gap-3 animate-fade-in pb-6">
       {/* Empty State */}
       {filteredTransactions.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-2 py-12 text-center text-muted rounded-2xl border border-dashed border-border bg-surface-2/30 p-6">
@@ -485,6 +475,8 @@ export function CashBookView({
           ) : null}
         </div>
       )}
+    </div>
+  )}
 
       {/* Edit Transaction Bottom Sheet */}
       <BottomSheet
@@ -524,6 +516,48 @@ export function CashBookView({
           deleteTx.mutate(transactionId, { onSuccess: () => setDeleting(null) });
         }}
         onCancel={() => setDeleting(null)}
+      />
+
+      {/* Pin / Unpin Book Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={!!pinningNotebook}
+        title={
+          Boolean(pinningNotebook?.isPinned || pinningNotebook?.isStarred)
+            ? `Unpin "${pinningNotebook?.name}"?`
+            : `Pin "${pinningNotebook?.name}"?`
+        }
+        description={
+          Boolean(pinningNotebook?.isPinned || pinningNotebook?.isStarred)
+            ? `This book will be unpinned from the top of your transaction books list.`
+            : `This book will be pinned to the top of your transaction books list.`
+        }
+        confirmLabel={
+          Boolean(pinningNotebook?.isPinned || pinningNotebook?.isStarred)
+            ? 'Unpin Book'
+            : 'Pin Book'
+        }
+        isDangerous={false}
+        isLoading={togglePinMutation.isPending}
+        onConfirm={() => {
+          if (!pinningNotebook) return;
+          const isCurrentlyPinned = Boolean(pinningNotebook.isPinned || pinningNotebook.isStarred);
+          togglePinMutation.mutate(
+            { notebookId: pinningNotebook.id, targetState: !isCurrentlyPinned },
+            {
+              onSuccess: () => setPinningNotebook(null),
+            }
+          );
+        }}
+        onCancel={() => setPinningNotebook(null)}
+      />
+
+
+
+      {/* Create New Book Popup Modal */}
+      <CreateBookModal
+        isOpen={isCreatingBook}
+        onClose={() => setIsCreatingBook(false)}
+        onCreated={(created) => setSelectedNotebookId(created.id)}
       />
 
       {/* View Detail Bottom Sheet */}
@@ -583,7 +617,7 @@ export function CashBookView({
           )
         )}
       </BottomSheet>
-    </div>
+    </>
   );
 }
 

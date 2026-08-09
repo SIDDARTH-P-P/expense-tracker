@@ -2,9 +2,10 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { FiList, FiBook, FiArrowLeft } from 'react-icons/fi';
+import { BsPinAngleFill, BsPinAngle } from 'react-icons/bs';
 import { useInfiniteTransactions } from '@/hooks/useTransactions';
 import { useCurrentUser } from '@/hooks/useAuth';
-import { useNotebooks } from '@/hooks/useNotebooks';
+import { useNotebooks, useTogglePinNotebook } from '@/hooks/useNotebooks';
 import { useDebounce } from '@/hooks/useDebounce';
 import { FilterBar } from '@/components/transactions/FilterBar';
 import { TransactionList } from '@/components/transactions/TransactionList';
@@ -14,21 +15,24 @@ import { CreateMonthlyBookModal } from '@/components/notebooks/CreateMonthlyBook
 import { useTransactions } from '@/hooks/useTransactions';
 import { useUIStore } from '@/store/ui.store';
 import type { TransactionFilters } from '@/hooks/useTransactions';
-import { cn } from '@/lib/utils/cn';
-
+import { ConfirmDialog } from '@/components/common/ConfirmDialog';
+import type { Notebook } from '@/types';
 import { formatCurrency } from '@/lib/utils/format';
+import { cn } from '@/lib/utils/cn';
 
 type ViewMode = 'list' | 'cashbook';
 
 export default function TransactionsPage() {
   const { data: user } = useCurrentUser();
   const { data: notebooksData } = useNotebooks();
+  const togglePinMutation = useTogglePinNotebook();
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [selectedNotebookId, setSelectedNotebookId] = useState<string | null>(null);
   const [filters, setFilters] = useState<Omit<TransactionFilters, 'page'>>({});
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [hasPromptedModal, setHasPromptedModal] = useState(false);
   const [isMonthlyBookModalOpen, setIsMonthlyBookModalOpen] = useState(false);
+  const [pinningNotebook, setPinningNotebook] = useState<Notebook | null>(null);
 
   const activeMonthStatus = notebooksData?.activeMonthStatus;
   const userNotebooks = notebooksData?.notebooks ?? [];
@@ -194,6 +198,20 @@ export default function TransactionsPage() {
                   <h2 className="font-display text-lg font-bold truncate text-foreground flex items-center gap-1.5">
                     <span>📘</span> {activeBookName}
                   </h2>
+                  {activeNotebook && (
+                    <button
+                      type="button"
+                      onClick={() => setPinningNotebook(activeNotebook)}
+                      className="p-1 rounded-lg hover:bg-surface-2 transition-colors shrink-0"
+                      title={Boolean(activeNotebook.isPinned || activeNotebook.isStarred) ? 'Unpin book' : 'Pin book'}
+                    >
+                      {Boolean(activeNotebook.isPinned || activeNotebook.isStarred) ? (
+                        <BsPinAngleFill size={16} className="text-amber-400 fill-amber-400" />
+                      ) : (
+                        <BsPinAngle size={16} className="text-muted hover:text-amber-400" />
+                      )}
+                    </button>
+                  )}
                   {activeNotebook?.isAutoMonthly ? (
                     <span className="rounded bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-bold text-emerald-600 dark:text-emerald-400 shrink-0">
                       Monthly
@@ -320,6 +338,41 @@ export default function TransactionsPage() {
         onClose={() => setIsMonthlyBookModalOpen(false)}
         monthBookName={activeMonthStatus?.name ?? 'Current Month'}
       />
+
+      {/* Pin / Unpin Book Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={!!pinningNotebook}
+        title={
+          Boolean(pinningNotebook?.isPinned || pinningNotebook?.isStarred)
+            ? `Unpin "${pinningNotebook?.name}"?`
+            : `Pin "${pinningNotebook?.name}"?`
+        }
+        description={
+          Boolean(pinningNotebook?.isPinned || pinningNotebook?.isStarred)
+            ? `This book will be unpinned from the top of your transaction books list.`
+            : `This book will be pinned to the top of your transaction books list.`
+        }
+        confirmLabel={
+          Boolean(pinningNotebook?.isPinned || pinningNotebook?.isStarred)
+            ? 'Unpin Book'
+            : 'Pin Book'
+        }
+        isDangerous={false}
+        isLoading={togglePinMutation.isPending}
+        onConfirm={() => {
+          if (!pinningNotebook) return;
+          const isCurrentlyPinned = Boolean(pinningNotebook.isPinned || pinningNotebook.isStarred);
+          togglePinMutation.mutate(
+            { notebookId: pinningNotebook.id, targetState: !isCurrentlyPinned },
+            {
+              onSuccess: () => setPinningNotebook(null),
+            }
+          );
+        }}
+        onCancel={() => setPinningNotebook(null)}
+      />
+
+
     </div>
   );
 }

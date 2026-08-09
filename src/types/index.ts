@@ -39,6 +39,8 @@ export interface Notebook {
   month?: number;
   year?: number;
   isAutoMonthly: boolean;
+  isStarred?: boolean;
+  isPinned?: boolean;
   color?: string;
   icon?: string;
   createdAt?: string;

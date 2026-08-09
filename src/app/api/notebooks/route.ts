@@ -21,6 +21,8 @@ export const GET = withAuth(async (req, user) => {
         month: nb.month,
         year: nb.year,
         isAutoMonthly: nb.isAutoMonthly,
+        isStarred: Boolean(nb.isStarred || nb.isPinned),
+        isPinned: Boolean(nb.isPinned || nb.isStarred),
         color: nb.color,
         icon: nb.icon,
         createdAt: nb.createdAt,
@@ -38,6 +40,25 @@ export const POST = withAuth(async (req, user) => {
   try {
     const body = await req.json();
 
+    if ((body.action === 'toggle_pin' || body.action === 'toggle_star') && body.notebookId) {
+      const targetState = typeof body.targetState === 'boolean' ? body.targetState : undefined;
+      const notebook = await notebookService.togglePin(user.userId, body.notebookId, targetState);
+      const isPinnedVal = Boolean(notebook.isPinned || notebook.isStarred);
+      return apiSuccess({
+        id: notebook._id.toString(),
+        recordId: notebook.recordId,
+        userId: notebook.userId.toString(),
+        name: notebook.name,
+        month: notebook.month,
+        year: notebook.year,
+        isAutoMonthly: notebook.isAutoMonthly,
+        isStarred: isPinnedVal,
+        isPinned: isPinnedVal,
+        color: notebook.color,
+        icon: notebook.icon,
+      });
+    }
+
     if (body.action === 'ensure_current') {
       const notebook = await notebookService.ensureCurrentMonthNotebook(user.userId, body.date);
       return apiSuccess({
@@ -48,6 +69,7 @@ export const POST = withAuth(async (req, user) => {
         month: notebook.month,
         year: notebook.year,
         isAutoMonthly: notebook.isAutoMonthly,
+        isStarred: Boolean(notebook.isStarred),
         color: notebook.color,
         icon: notebook.icon,
       }, 201);

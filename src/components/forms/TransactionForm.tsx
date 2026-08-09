@@ -24,6 +24,8 @@ import { useCategories } from '@/hooks/useCategories';
 import { useNotebooks, useCreateNotebook } from '@/hooks/useNotebooks';
 import { cn } from '@/lib/utils/cn';
 import { QuickCategoryPicker } from '@/components/forms/QuickCategoryPicker';
+import { ConfirmDialog } from '@/components/common/ConfirmDialog';
+import { CreateBookModal } from '@/components/notebooks/CreateBookModal';
 import type { Transaction } from '@/types';
 
 type SubmitIntent = 'save' | 'saveAndNew';
@@ -506,6 +508,17 @@ export function TransactionForm({ defaultType = 'expense', initialData, onSubmit
   const [isCreatingCustomBook, setIsCreatingCustomBook] = useState(false);
   const [customBookName, setCustomBookName] = useState('');
 
+  function handleCreateCustomBook() {
+    if (!customBookName.trim()) return;
+    createNotebookMutation.mutate(customBookName.trim(), {
+      onSuccess: (newBook) => {
+        setSelectedNotebookId(newBook.id);
+        setCustomBookName('');
+        setIsCreatingCustomBook(false);
+      },
+    });
+  }
+
   const userNotebooks = notebooksData?.notebooks ?? [];
   const activeMonthStatus = notebooksData?.activeMonthStatus;
 
@@ -569,16 +582,7 @@ export function TransactionForm({ defaultType = 'expense', initialData, onSubmit
     setPicker(null);
   }
 
-  function handleCreateCustomBook() {
-    if (!customBookName.trim()) return;
-    createNotebookMutation.mutate(customBookName.trim(), {
-      onSuccess: (newBook) => {
-        setSelectedNotebookId(newBook.id);
-        setCustomBookName('');
-        setIsCreatingCustomBook(false);
-      },
-    });
-  }
+
 
   function serializeValues(values: TransactionFormValues): TransactionFormValues {
     let finalNotebookId: string | null = null;
@@ -872,19 +876,20 @@ export function TransactionForm({ defaultType = 'expense', initialData, onSubmit
                 </div>
 
                 {isCreatingCustomBook && !readOnly && (
-                  <div className="flex gap-2 pt-1">
+                  <div className="flex gap-2 pt-2 animate-slide-down">
                     <input
                       type="text"
                       placeholder="e.g. Travel 2026, Office..."
                       value={customBookName}
                       onChange={(e) => setCustomBookName(e.target.value)}
-                      className="flex-1 h-9 rounded-xl border border-border bg-surface px-3 text-xs text-foreground outline-none focus:border-primary"
+                      className="flex-1 h-9 rounded-xl border border-border bg-surface px-3 text-xs font-medium text-foreground outline-none focus:border-primary"
+                      autoFocus
                     />
                     <button
                       type="button"
                       onClick={handleCreateCustomBook}
                       disabled={createNotebookMutation.isPending || !customBookName.trim()}
-                      className="h-9 rounded-xl bg-primary px-3 text-xs font-bold text-primary-foreground disabled:opacity-50"
+                      className="h-9 rounded-xl bg-primary px-3 text-xs font-bold text-primary-foreground disabled:opacity-50 flex items-center gap-1"
                     >
                       {createNotebookMutation.isPending ? 'Saving...' : 'Add'}
                     </button>
@@ -951,6 +956,8 @@ export function TransactionForm({ defaultType = 'expense', initialData, onSubmit
           />
         )}
       </AnimatePresence>
+
+
     </form>
   );
 }

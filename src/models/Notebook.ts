@@ -7,6 +7,8 @@ export interface INotebook extends Document {
   month?: number; // 0-11
   year?: number;  // e.g. 2026
   isAutoMonthly: boolean;
+  isStarred?: boolean;
+  isPinned?: boolean;
   color?: string;
   icon?: string;
   createdAt: Date;
@@ -21,6 +23,8 @@ const NotebookSchema = new Schema<INotebook>(
     month: { type: Number, min: 0, max: 11 },
     year: { type: Number },
     isAutoMonthly: { type: Boolean, default: false },
+    isStarred: { type: Boolean, default: false },
+    isPinned: { type: Boolean, default: false },
     color: { type: String, default: '#6366F1' },
     icon: { type: String, default: 'FiBook' },
   },
@@ -29,5 +33,9 @@ const NotebookSchema = new Schema<INotebook>(
 
 NotebookSchema.index({ userId: 1, name: 1 }, { unique: true });
 NotebookSchema.index({ recordId: 1 }, { unique: true, sparse: true });
+
+if (process.env.NODE_ENV === 'development' && models.Notebook) {
+  delete (models as any).Notebook;
+}
 
 export default models.Notebook || model<INotebook>('Notebook', NotebookSchema);

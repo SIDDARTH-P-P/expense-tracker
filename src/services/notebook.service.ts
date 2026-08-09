@@ -77,7 +77,40 @@ export const notebookService = {
   },
 
   async list(userId: string) {
-    return Notebook.find({ userId: new Types.ObjectId(userId) }).sort({ createdAt: -1 });
+    return Notebook.find({ userId: new Types.ObjectId(userId) }).sort({ isPinned: -1, isStarred: -1, createdAt: -1 });
+  },
+
+  async togglePin(userId: string, notebookId: string, targetState?: boolean) {
+    if (!Types.ObjectId.isValid(notebookId)) {
+      throw new NotebookError('Invalid book ID.', 400);
+    }
+    const userObjId = new Types.ObjectId(userId);
+    const nbObjId = new Types.ObjectId(notebookId);
+
+    const existing = await Notebook.findOne({ _id: nbObjId, userId: userObjId });
+    if (!existing) {
+      throw new NotebookError('Book not found.', 404);
+    }
+
+    const nextVal = typeof targetState === 'boolean'
+      ? targetState
+      : !Boolean(existing.isPinned || existing.isStarred);
+
+    const updated = await Notebook.findOneAndUpdate(
+      { _id: nbObjId, userId: userObjId },
+      { $set: { isPinned: nextVal, isStarred: nextVal } },
+      { new: true }
+    );
+
+    if (!updated) {
+      throw new NotebookError('Could not update book pin status.', 500);
+    }
+
+    return updated;
+  },
+
+  async toggleStar(userId: string, notebookId: string) {
+    return this.togglePin(userId, notebookId);
   },
 
   async create(userId: string, name: string) {

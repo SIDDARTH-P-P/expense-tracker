@@ -62,3 +62,39 @@ export function useCreateNotebook() {
     onError: (err: ApiClientError) => toast.error(err.message),
   });
 }
+
+export function useTogglePinNotebook() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: string | { notebookId: string; targetState?: boolean }) => {
+      const notebookId = typeof args === 'string' ? args : args.notebookId;
+      const targetState = typeof args === 'string' ? undefined : args.targetState;
+      return apiClient.post<Notebook>('/notebooks', { action: 'toggle_pin', notebookId, targetState });
+    },
+    onSuccess: (updated) => {
+      const isPinned = Boolean(updated.isPinned || updated.isStarred);
+      qc.setQueriesData({ queryKey: ['notebooks'] }, (old: any) => {
+        if (!old || !old.notebooks) return old;
+        return {
+          ...old,
+          notebooks: old.notebooks.map((nb: any) =>
+            nb.id === updated.id
+              ? {
+                  ...nb,
+                  isPinned,
+                  isStarred: isPinned,
+                }
+              : nb
+          ),
+        };
+      });
+      qc.invalidateQueries({ queryKey: ['notebooks'] });
+      toast.success(isPinned ? `Pinned "${updated.name}" to top` : `Unpinned "${updated.name}"`);
+    },
+    onError: (err: ApiClientError) => toast.error(err.message),
+  });
+}
+
+export function useToggleStarNotebook() {
+  return useTogglePinNotebook();
+}

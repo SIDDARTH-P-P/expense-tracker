@@ -84,6 +84,8 @@ export function normalizeNotebook(value: unknown): Notebook | string | null {
     month: typeof nb.month === 'number' ? nb.month : undefined,
     year: typeof nb.year === 'number' ? nb.year : undefined,
     isAutoMonthly: Boolean(nb.isAutoMonthly),
+    isStarred: Boolean(nb.isStarred || nb.isPinned),
+    isPinned: Boolean(nb.isPinned || nb.isStarred),
     color: typeof nb.color === 'string' ? nb.color : '#6366F1',
     icon: typeof nb.icon === 'string' ? nb.icon : 'FiBook',
   };
