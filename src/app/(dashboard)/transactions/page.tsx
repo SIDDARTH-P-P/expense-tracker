@@ -19,6 +19,7 @@ import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import type { Notebook } from '@/types';
 import { formatCurrency } from '@/lib/utils/format';
 import { cn } from '@/lib/utils/cn';
+import { getNotebookPalette } from '@/lib/utils/notebook-colors';
 
 type ViewMode = 'list' | 'cashbook';
 
@@ -195,9 +196,21 @@ export default function TransactionsPage() {
 
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
-                  <h2 className="font-display text-lg font-bold truncate text-foreground flex items-center gap-1.5">
-                    <span>📘</span> {activeBookName}
-                  </h2>
+                  {(() => {
+                    const palette = activeNotebook ? getNotebookPalette(activeNotebook.name, activeNotebook.id) : null;
+                    return (
+                      <h2 className="font-display text-lg font-bold truncate text-foreground flex items-center gap-2">
+                        {palette ? (
+                          <span className={cn("grid h-8 w-8 shrink-0 place-items-center rounded-xl text-base font-bold", palette.bg)}>
+                            {palette.icon}
+                          </span>
+                        ) : (
+                          <span>📘</span>
+                        )}
+                        {activeBookName}
+                      </h2>
+                    );
+                  })()}
                   {activeNotebook && (
                     <button
                       type="button"

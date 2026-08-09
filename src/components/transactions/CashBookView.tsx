@@ -30,6 +30,7 @@ import { TransactionRowSkeleton } from '@/components/common/Skeleton';
 import { useDeleteTransaction, useUpdateTransaction } from '@/hooks/useTransactions';
 import { useSplit } from '@/hooks/useManagement';
 import { useNotebooks, useCreateNotebook, useTogglePinNotebook } from '@/hooks/useNotebooks';
+import { getNotebookPalette } from '@/lib/utils/notebook-colors';
 
 interface CashBookViewProps {
   transactions: Transaction[];
@@ -349,6 +350,7 @@ export function CashBookView({
             {sortedUserNotebooks.map((nb) => {
               const stats = notebookStats.get(nb.id) ?? { count: 0, income: 0, expense: 0, net: 0 };
               const isPinned = Boolean(nb.isPinned || nb.isStarred);
+              const palette = getNotebookPalette(nb.name, nb.id);
 
               return (
                 <div
@@ -357,8 +359,8 @@ export function CashBookView({
                   className="group flex items-center justify-between rounded-2xl border border-border bg-surface p-3 transition-all hover:border-primary/50 cursor-pointer hover:shadow-soft"
                 >
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-surface-2 text-foreground font-bold text-base">
-                      📘
+                    <div className={cn("grid h-10 w-10 shrink-0 place-items-center rounded-xl font-bold text-base", palette.bg)}>
+                      {palette.icon}
                     </div>
                     <div className="min-w-0">
                       <div className="flex items-center gap-1.5">
