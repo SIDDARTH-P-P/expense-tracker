@@ -36,7 +36,7 @@ export default function TransactionsPage() {
   const [pinningNotebook, setPinningNotebook] = useState<Notebook | null>(null);
 
   const activeMonthStatus = notebooksData?.activeMonthStatus;
-  const userNotebooks = notebooksData?.notebooks ?? [];
+  const userNotebooks = useMemo(() => notebooksData?.notebooks ?? [], [notebooksData?.notebooks]);
 
   const isBookOpen = viewMode === 'cashbook' && selectedNotebookId !== null;
 

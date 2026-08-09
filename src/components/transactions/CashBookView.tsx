@@ -107,7 +107,7 @@ export function CashBookView({
   onFetchNextPage,
 }: CashBookViewProps) {
   const { data: notebooksData } = useNotebooks();
-  const userNotebooks = notebooksData?.notebooks ?? [];
+  const userNotebooks = useMemo(() => notebooksData?.notebooks ?? [], [notebooksData?.notebooks]);
   const createNotebookMutation = useCreateNotebook();
   // Sort user notebooks so PINNED BOOKS SHOW FIRST
   const sortedUserNotebooks = useMemo(() => {
@@ -423,7 +423,7 @@ export function CashBookView({
           <FiBook size={24} className="text-primary" />
           <h3 className="text-xs font-bold text-foreground">No Transactions Found</h3>
           <p className="text-[11px] text-muted max-w-xs">
-            No transaction records logged in "{activeNotebook?.name ?? 'this book'}".
+            No transaction records logged in &quot;{activeNotebook?.name ?? 'this book'}&quot;.
           </p>
         </div>
       ) : (

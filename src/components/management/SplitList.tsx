@@ -571,7 +571,7 @@ export function SplitList({ search = '', filters }: SplitListProps) {
                   <FiXCircle size={22} />
                 </div>
                 <h2 className="mb-1 text-lg font-display font-semibold">
-                  Close "{confirmClose.title}"?
+                  Close &quot;{confirmClose.title}&quot;?
                 </h2>
                 <p className="mb-4 text-xs text-muted">
                   Closing this split will set its status to Closed and disable further actions. All members will be notified.
