@@ -49,7 +49,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {/* Only this scrolls */}
         <main
           id="main-content"
-          className="flex-1 overflow-y-auto overscroll-contain px-4 pb-28 sm:px-6 sm:pb-10 lg:px-8"
+          className="flex-1 overflow-y-auto overscroll-contain px-4 pb-20 sm:px-6 sm:pb-10 lg:px-8"
         >
           {children}
         </main>
