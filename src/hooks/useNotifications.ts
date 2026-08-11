@@ -284,19 +284,15 @@ export function useNotifications() {
       });
 
       es.onerror = () => {
-        try {
-          es.close();
-        } catch {
-          // ignore
-        }
-        eventSourceRef.current = null;
-
-        if (!isDisposed) {
-          retryCount++;
-          // Infinite retry exponential backoff capped at 10 seconds
-          const delay = Math.min(1000 * Math.pow(1.5, retryCount), 10000);
-          clearTimeout(reconnectTimeout);
-          reconnectTimeout = setTimeout(connect, delay);
+        // If state is CLOSED, perform rapid reconnection
+        if (es.readyState === EventSource.CLOSED) {
+          eventSourceRef.current = null;
+          if (!isDisposed) {
+            retryCount++;
+            const delay = Math.min(500 * Math.pow(1.5, retryCount), 5000);
+            clearTimeout(reconnectTimeout);
+            reconnectTimeout = setTimeout(connect, delay);
+          }
         }
       };
     }

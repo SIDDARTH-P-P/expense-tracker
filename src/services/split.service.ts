@@ -577,39 +577,14 @@ export const splitService = {
         const targetUser = await findUserByEmail(targetSplitUser.email);
         const creatorUser = await User.findById(split.userId);
 
-        // Prepare Notification to Creator
-        if (creatorUser) {
-          notificationsToCreate.push({
-            targetUserId: creatorUser._id.toString(),
-            title: `Split Paid by ${targetSplitUser.name}`,
-            message: `${targetSplitUser.name} paid their share of ₹${member.shareAmount} for "${split.title}"`,
-            type: 'Split Paid',
-            relatedId: split._id.toString(),
-          });
-        }
+        const targetUserIdStr = targetUser?._id?.toString();
+        const creatorUserIdStr = creatorUser?._id?.toString();
+        const payerUserIdStr = payerUser?._id?.toString();
 
-        // Also notify the payer if different from creator
-        if (
-          payerUser &&
-          payerUser._id.toString() !== creatorUser?._id.toString()
-        ) {
+        // 1. Notify the member whose share was marked paid
+        if (targetUserIdStr) {
           notificationsToCreate.push({
-            targetUserId: payerUser._id.toString(),
-            title: `Split Paid by ${targetSplitUser.name}`,
-            message: `${targetSplitUser.name} paid their share of ₹${member.shareAmount} for "${split.title}"`,
-            type: 'Split Paid',
-            relatedId: split._id.toString(),
-          });
-        }
-
-        // Notify member whose share was marked paid
-        if (
-          targetUser &&
-          targetUser._id.toString() !== creatorUser?._id.toString() &&
-          targetUser._id.toString() !== payerUser?._id.toString()
-        ) {
-          notificationsToCreate.push({
-            targetUserId: targetUser._id.toString(),
+            targetUserId: targetUserIdStr,
             title: `Split Payment Confirmed`,
             message: `Your share of ₹${member.shareAmount} for "${split.title}" was marked as paid`,
             type: 'Split Paid',
@@ -617,14 +592,38 @@ export const splitService = {
           });
         }
 
-        // Always notify the actor so live notification fires for active user session
-        notificationsToCreate.push({
-          targetUserId: userId,
-          title: `Payment Recorded for "${split.title}"`,
-          message: `Marked ${targetSplitUser.name}'s share of ₹${member.shareAmount} as paid.`,
-          type: 'Split Paid',
-          relatedId: split._id.toString(),
-        });
+        // 2. Notify Creator (if creator is not the paying target member)
+        if (creatorUserIdStr && creatorUserIdStr !== targetUserIdStr) {
+          notificationsToCreate.push({
+            targetUserId: creatorUserIdStr,
+            title: `Split Paid by ${targetSplitUser.name}`,
+            message: `${targetSplitUser.name} paid their share of ₹${member.shareAmount} for "${split.title}"`,
+            type: 'Split Paid',
+            relatedId: split._id.toString(),
+          });
+        }
+
+        // 3. Notify Payer (if payer is different from creator and target member)
+        if (payerUserIdStr && payerUserIdStr !== creatorUserIdStr && payerUserIdStr !== targetUserIdStr) {
+          notificationsToCreate.push({
+            targetUserId: payerUserIdStr,
+            title: `Split Paid by ${targetSplitUser.name}`,
+            message: `${targetSplitUser.name} paid their share of ₹${member.shareAmount} for "${split.title}"`,
+            type: 'Split Paid',
+            relatedId: split._id.toString(),
+          });
+        }
+
+        // 4. Notify Actor (person who clicked Mark Paid, if different from target, creator, and payer)
+        if (userId !== targetUserIdStr && userId !== creatorUserIdStr && userId !== payerUserIdStr) {
+          notificationsToCreate.push({
+            targetUserId: userId,
+            title: `Payment Recorded for "${split.title}"`,
+            message: `Marked ${targetSplitUser.name}'s share of ₹${member.shareAmount} as paid.`,
+            type: 'Split Paid',
+            relatedId: split._id.toString(),
+          });
+        }
 
         // Create Settlement Transactions:
         // A. Payer (Payer receives Income share)
