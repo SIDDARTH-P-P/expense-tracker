@@ -164,3 +164,138 @@ export async function sendResetPasswordEmail({ to, name, resetUrl }: SendResetPa
   console.log(`[mailer] Reset email sent to ${to}: messageId = ${info.messageId}`);
   return info;
 }
+
+export interface SendOtpEmailParams {
+  to: string;
+  name?: string;
+  otp: string;
+}
+
+export function getOtpTemplate(name: string, otp: string): string {
+  const userName = name || 'User';
+
+  return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Verification Code</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: #121218;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      color: #e2e8f0;
+      -webkit-font-smoothing: antialiased;
+    }
+    .wrapper {
+      width: 100%;
+      background-color: #121218;
+      padding: 40px 16px;
+      box-sizing: border-box;
+    }
+    .container {
+      max-width: 520px;
+      margin: 0 auto;
+      background-color: #1d1d26;
+      border-radius: 16px;
+      padding: 40px 32px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      text-align: center;
+    }
+    .heading {
+      font-size: 26px;
+      font-weight: 700;
+      color: #10b981;
+      margin-top: 0;
+      margin-bottom: 16px;
+      letter-spacing: -0.02em;
+    }
+    .body-text {
+      font-size: 15px;
+      line-height: 1.6;
+      color: #cbd5e1;
+      margin: 0 0 8px 0;
+    }
+    .otp-box {
+      margin: 28px 0;
+      background-color: #16161f;
+      border: 1px border rgba(16, 185, 129, 0.3);
+      border-radius: 12px;
+      padding: 20px 24px;
+      display: inline-block;
+    }
+    .otp-code {
+      font-family: monospace, monospace;
+      font-size: 36px;
+      font-weight: 800;
+      color: #10b981;
+      letter-spacing: 10px;
+      margin: 0;
+    }
+    .warning-text {
+      font-size: 14px;
+      font-weight: 600;
+      color: #34d399;
+      margin: 20px 0 16px 0;
+      line-height: 1.5;
+    }
+    .disclaimer-text {
+      font-size: 13px;
+      color: #94a3b8;
+      line-height: 1.6;
+      margin: 0 0 28px 0;
+    }
+    .footer-box {
+      background-color: #16161f;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 10px;
+      padding: 12px 16px;
+      display: inline-block;
+      font-size: 13px;
+      color: #94a3b8;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="container">
+      <h1 class="heading">Verify Your Account</h1>
+      
+      <p class="body-text">Hello ${userName},</p>
+      <p class="body-text">Thank you for registering with VaultCash. Please use the verification code below to complete your registration:</p>
+
+      <div class="otp-box">
+        <div class="otp-code">${otp}</div>
+      </div>
+
+      <p class="warning-text">This code will expire in 10 minutes.</p>
+      <p class="disclaimer-text">If you did not initiate this sign-up request, please ignore this email.</p>
+
+      <div class="footer-box">
+        💻 VaultCash Financial Suite
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+  `;
+}
+
+export async function sendOtpEmail({ to, name, otp }: SendOtpEmailParams) {
+  const html = getOtpTemplate(name || 'User', otp);
+
+  const mailOptions = {
+    from: EMAIL_FROM,
+    to,
+    subject: `${otp} is your VaultCash verification code`,
+    html,
+  };
+
+  const info = await transporter.sendMail(mailOptions);
+  console.log(`[mailer] OTP email sent to ${to}: messageId = ${info.messageId}`);
+  return info;
+}
