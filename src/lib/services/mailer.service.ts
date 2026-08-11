@@ -24,8 +24,17 @@ export interface SendResetPasswordEmailParams {
 
 export function getResetPasswordTemplate(name: string, resetUrl: string): string {
   const userName = name || 'User';
-  const siteUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-  const siteDomain = siteUrl.replace(/^https?:\/\//, '');
+  let siteUrl = process.env.NEXT_PUBLIC_APP_URL || '';
+  try {
+    if (resetUrl) {
+      siteUrl = new URL(resetUrl).origin;
+    }
+  } catch {
+    // ignore
+  }
+
+  const isLocal = !siteUrl || siteUrl.includes('localhost') || siteUrl.includes('127.0.0.1');
+  const siteDomain = isLocal ? 'VaultCash Financial Suite' : siteUrl.replace(/^https?:\/\//, '');
 
   return `
 <!DOCTYPE html>
@@ -132,7 +141,7 @@ export function getResetPasswordTemplate(name: string, resetUrl: string): string
       <p class="disclaimer-text">If you did not request this link or this email has been sent to you in error, please contact our support team.</p>
 
       <div class="footer-box">
-        💻 <a href="${siteUrl}" target="_blank" class="footer-link">${siteDomain}</a>
+        ${isLocal ? '💻 VaultCash Financial Suite' : `💻 <a href="${siteUrl}" target="_blank" class="footer-link">${siteDomain}</a>`}
       </div>
     </div>
   </div>

@@ -132,7 +132,7 @@ const htmlContent = `
       <p class="disclaimer-text">If you did not request this link or this email has been sent to you in error, please contact our support team.</p>
 
       <div class="footer-box">
-        💻 <a href="${baseUrl}" target="_blank" class="footer-link">${siteDomain}</a>
+        💻 VaultCash Financial Suite
       </div>
     </div>
   </div>

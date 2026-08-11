@@ -24,8 +24,12 @@ export async function POST(req: NextRequest) {
       (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : reqOrigin);
 
     const user = await userRepository.findByEmail(cleanEmail);
-    const userName = user?.name || cleanEmail.split('@')[0] || 'User';
-    const userId = user?.id || user?._id?.toString() || cleanEmail;
+    if (!user) {
+      return apiError('No account found with this email address.', 404);
+    }
+
+    const userName = user.name || cleanEmail.split('@')[0] || 'User';
+    const userId = user.id || user._id?.toString() || cleanEmail;
 
     const resetToken = jwt.sign(
       { userId, email: cleanEmail },

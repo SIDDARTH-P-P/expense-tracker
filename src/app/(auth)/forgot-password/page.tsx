@@ -8,7 +8,10 @@ import { Input } from '@/components/common/Input';
 import { Button } from '@/components/common/Button';
 import { apiClient } from '@/services/api-client';
 
+import { useRouter } from 'next/navigation';
+
 export default function ForgotPasswordPage() {
+  const router = useRouter();
   const [email, setEmail] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [sent, setSent] = useState(false);
@@ -19,7 +22,10 @@ export default function ForgotPasswordPage() {
     try {
       await apiClient.post('/auth/forgot-password', { email });
       setSent(true);
-      toast.success('Reset link sent! Please check your email inbox.');
+      toast.success('Reset link sent! Redirecting to login page...');
+      setTimeout(() => {
+        router.push('/login');
+      }, 3000);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Something went wrong. Please try again.';
       toast.error(msg);
