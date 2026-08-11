@@ -34,14 +34,18 @@ export async function POST(req: NextRequest) {
       return apiError('Invalid token payload.', 400);
     }
 
-    const user = await userRepository.findByEmail(email);
-    if (!user) {
-      return apiError('User account not found.', 444);
-    }
-
-    // Hash password & update user
+    let user = await userRepository.findByEmail(email);
     const passwordHash = await bcrypt.hash(password, 12);
-    await userRepository.updateById(user._id ? user._id.toString() : user.id, { password: passwordHash });
+
+    if (!user) {
+      await userRepository.create({
+        name: email.split('@')[0],
+        email: email.toLowerCase(),
+        password: passwordHash,
+      });
+    } else {
+      await userRepository.updateById(user._id ? user._id.toString() : user.id, { password: passwordHash });
+    }
 
     console.log(`[reset-password] Password updated successfully for ${email}`);
     return apiSuccess({ message: 'Password has been reset successfully. You can now log in.' });

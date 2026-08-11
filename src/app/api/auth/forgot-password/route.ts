@@ -12,29 +12,43 @@ export async function POST(req: NextRequest) {
     const { email } = await req.json();
     if (!email) return apiError('Email is required.', 422);
 
-    const user = await userRepository.findByEmail(email);
-    if (user) {
-      const resetToken = jwt.sign(
-        { userId: user.id, email: user.email },
-        JWT_SECRET,
-        { expiresIn: '10m' }
-      );
+    const cleanEmail = email.trim().toLowerCase();
 
-      const resetUrl = `${APP_URL}/reset-password?token=${encodeURIComponent(resetToken)}`;
+    // Dynamically resolve base URL (support Vercel deployments, custom domains, and local dev)
+    const host = req.headers.get('x-forwarded-host') || req.headers.get('host');
+    const proto = req.headers.get('x-forwarded-proto') || 'https';
+    const reqOrigin = host ? `${proto}://${host}` : req.nextUrl.origin;
 
-      await sendResetPasswordEmail({
-        to: user.email,
-        name: user.name,
-        resetUrl,
-      });
+    const appUrl =
+      process.env.NEXT_PUBLIC_APP_URL ||
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : reqOrigin);
 
-      console.log(`[forgot-password] Reset link emailed to ${email}`);
-    }
+    const user = await userRepository.findByEmail(cleanEmail);
+    const userName = user?.name || cleanEmail.split('@')[0] || 'User';
+    const userId = user?.id || user?._id?.toString() || cleanEmail;
+
+    const resetToken = jwt.sign(
+      { userId, email: cleanEmail },
+      JWT_SECRET,
+      { expiresIn: '10m' }
+    );
+
+    const resetUrl = `${appUrl.replace(/\/$/, '')}/reset-password?token=${encodeURIComponent(resetToken)}`;
+
+    // Send password reset email via Nodemailer
+    await sendResetPasswordEmail({
+      to: cleanEmail,
+      name: userName,
+      resetUrl,
+    });
+
+    console.log(`[forgot-password] Reset password link successfully sent to ${cleanEmail} (URL: ${resetUrl})`);
 
     return apiSuccess({ message: 'If an account exists for that email, a reset link has been sent.' });
-  } catch (err) {
-    console.error('Forgot password error:', err);
-    return apiError('Something went wrong.', 500);
+  } catch (err: unknown) {
+    const errorDetails = err instanceof Error ? err.message : String(err);
+    console.error('[forgot-password] Failed to send reset email:', errorDetails);
+    return apiError(`Failed to send email: ${errorDetails}`, 500);
   }
 }
 
