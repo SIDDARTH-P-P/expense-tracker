@@ -9,6 +9,29 @@ export const GET = withAuth(async (req, user) => {
   const stream = new ReadableStream({
     start(controller) {
       cleanup = notificationService.registerClient(user.userId, controller);
+
+      // Send immediate connection ACK
+      try {
+        controller.enqueue(new TextEncoder().encode(': connected\n\n'));
+      } catch {
+        // ignore
+      }
+
+      // Heartbeat interval (every 10 seconds) keeps socket alive indefinitely
+      const pingInterval = setInterval(() => {
+        try {
+          controller.enqueue(new TextEncoder().encode(': ping\n\n'));
+        } catch {
+          clearInterval(pingInterval);
+          cleanup();
+        }
+      }, 10000);
+
+      const originalCleanup = cleanup;
+      cleanup = () => {
+        clearInterval(pingInterval);
+        originalCleanup();
+      };
     },
     cancel() {
       cleanup();

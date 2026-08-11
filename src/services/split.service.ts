@@ -240,6 +240,15 @@ export const splitService = {
         }
       }
 
+      // Always notify creator/actor so live notification fires for current user session
+      notificationsToCreate.push({
+        targetUserId: userId,
+        title: `Split Created: "${input.title}"`,
+        message: `Split of ₹${input.amount} created with ${members.length} members.`,
+        type: 'Split Created',
+        relatedId: split._id.toString(),
+      });
+
       // 3. Create Audit Log
       await Audit.create([{
         userId: new Types.ObjectId(userId),
@@ -496,6 +505,14 @@ export const splitService = {
       }
     }
 
+    // Always create notification for active user so live SSE notification fires for reminder sender
+    await notificationService.create(userId, {
+      title: `Reminder Sent for "${split.title}"`,
+      message: `Payment reminder sent for "${split.title}".`,
+      type: 'Split Reminder',
+      relatedId: split._id.toString(),
+    });
+
     return split;
   },
 
@@ -599,6 +616,15 @@ export const splitService = {
             relatedId: split._id.toString(),
           });
         }
+
+        // Always notify the actor so live notification fires for active user session
+        notificationsToCreate.push({
+          targetUserId: userId,
+          title: `Payment Recorded for "${split.title}"`,
+          message: `Marked ${targetSplitUser.name}'s share of ₹${member.shareAmount} as paid.`,
+          type: 'Split Paid',
+          relatedId: split._id.toString(),
+        });
 
         // Create Settlement Transactions:
         // A. Payer (Payer receives Income share)
