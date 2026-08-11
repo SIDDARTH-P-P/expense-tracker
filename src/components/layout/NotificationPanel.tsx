@@ -14,6 +14,7 @@ import { BottomSheet } from '@/components/common/BottomSheet';
 import { EmptyState } from '@/components/common/EmptyState';
 import { cn } from '@/lib/utils/cn';
 import type { Notification } from '@/types';
+import { requestNotificationPermission, showBrowserNotification } from '@/hooks/useNotifications';
 
 interface NotificationPanelProps {
   isOpen: boolean;
@@ -105,6 +106,21 @@ export function NotificationPanel({
             )}
           </div>
           <div className="flex items-center gap-2">
+            {typeof window !== 'undefined' && 'Notification' in window && window.Notification.permission !== 'granted' && (
+              <button
+                type="button"
+                onClick={async () => {
+                  const perm = await requestNotificationPermission();
+                  if (perm === 'granted') {
+                    showBrowserNotification('Push Alerts Enabled', 'You will now receive live push notifications for split alerts.');
+                  }
+                }}
+                className="flex items-center gap-1 rounded-xl bg-amber-500/10 px-2.5 py-1 text-[11px] font-semibold text-amber-500 hover:bg-amber-500 hover:text-white transition"
+              >
+                <FiBell size={12} />
+                Enable Push
+              </button>
+            )}
             {unreadCount > 0 && (
               <button
                 type="button"

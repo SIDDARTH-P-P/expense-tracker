@@ -28,6 +28,7 @@ export const GET = withAuth(async (req, user) => {
       'Expires': '0',
       'Connection': 'keep-alive',
       'X-Accel-Buffering': 'no',
+      'Content-Encoding': 'none',
     },
   });
 });

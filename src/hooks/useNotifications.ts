@@ -73,15 +73,17 @@ export function playNotificationSound() {
 // ——————————————————————————————————————————————————————
 // Browser Push Notification (native OS-level)
 // ——————————————————————————————————————————————————————
-function requestNotificationPermission() {
-  if (typeof window === 'undefined') return;
-  if (!('Notification' in window)) return;
-  if (window.Notification.permission === 'default') {
-    window.Notification.requestPermission();
+export async function requestNotificationPermission(): Promise<NotificationPermission> {
+  if (typeof window === 'undefined' || !('Notification' in window)) return 'denied';
+  if (window.Notification.permission === 'granted') return 'granted';
+  try {
+    return await window.Notification.requestPermission();
+  } catch {
+    return 'denied';
   }
 }
 
-function showBrowserNotification(title: string, body: string, icon?: string) {
+export function showBrowserNotification(title: string, body: string, icon?: string) {
   if (typeof window === 'undefined') return;
   if (!('Notification' in window)) return;
   if (window.Notification.permission !== 'granted') return;
@@ -89,8 +91,8 @@ function showBrowserNotification(title: string, body: string, icon?: string) {
   try {
     const notification = new window.Notification(title, {
       body,
-      icon: icon ?? '/manifest.json', // fallback
-      badge: '/manifest.json',
+      icon: icon ?? '/icon.png',
+      badge: '/icon.png',
       tag: `tagit-${Date.now()}`,
       requireInteraction: false,
       silent: true, // we play our own sound
