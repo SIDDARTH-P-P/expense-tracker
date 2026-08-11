@@ -14,7 +14,6 @@ import { useDashboardSummary } from '@/hooks/useDashboard';
 import { useUIStore } from '@/store/ui.store';
 import { cn } from '@/lib/utils/cn';
 import Link from 'next/link';
-import Image from 'next/image';
 
 function greeting() {
   const h = new Date().getHours();
@@ -68,11 +67,6 @@ export function Header() {
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
         <div className="flex items-center gap-3 px-4 py-3 sm:px-6 lg:px-8">
-          {/* Mobile brand logo */}
-          <Link href="/dashboard" className="relative h-10 w-24 lg:hidden shrink-0">
-            <Image src="/tagit-logo.png" alt="TagIt Logo" fill className="object-contain object-left" priority />
-          </Link>
-
           {/* Left — greeting + name */}
           <div className="min-w-0 flex-1">
             {isLoading ? (
@@ -111,13 +105,13 @@ export function Header() {
               aria-label="Toggle theme"
               className="flex h-9 w-9 items-center justify-center rounded-2xl border border-border bg-surface text-foreground transition-all hover:border-primary/40 hover:bg-primary/5 hover:scale-105 active:scale-95"
             >
-              <AnimatePresence mode="wait" initial={false}>
+              <AnimatePresence mode="popLayout" initial={false}>
                 <motion.span
                   key={theme}
                   initial={{ rotate: -90, opacity: 0 }}
                   animate={{ rotate: 0, opacity: 1 }}
                   exit={{ rotate: 90, opacity: 0 }}
-                  transition={{ duration: 0.2 }}
+                  transition={{ duration: 0.15 }}
                   className="flex items-center justify-center"
                 >
                   {theme === 'dark' ? <FiSun size={16} /> : <FiMoon size={16} />}

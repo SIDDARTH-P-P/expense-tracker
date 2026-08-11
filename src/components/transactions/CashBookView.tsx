@@ -303,9 +303,9 @@ export function CashBookView({
           {/* Books Header */}
           <div className="flex items-center justify-between px-1">
             <div>
-              <h2 className="text-sm font-bold tracking-tight text-foreground flex items-center gap-1.5">
-                <FiBookmark className="text-primary" size={16} /> Transaction Books
-              </h2>
+              <span className="text-xs font-bold uppercase tracking-wider text-muted flex items-center gap-1.5">
+                <FiBookmark className="text-primary" size={14} /> Books Shelf
+              </span>
             </div>
 
             <button

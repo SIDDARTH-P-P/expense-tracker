@@ -238,8 +238,14 @@ export default function TransactionsPage() {
         ) : (
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
-              <h2 className="font-display text-xl font-bold">Transactions</h2>
-              <p className="text-xs text-muted mt-0.5">{totalCount} total records</p>
+              <h2 className="font-display text-xl font-bold">
+                {viewMode === 'cashbook' ? 'Cash Books' : 'Transactions'}
+              </h2>
+              <p className="text-xs text-muted mt-0.5">
+                {viewMode === 'cashbook'
+                  ? `${userNotebooks.length} ${userNotebooks.length === 1 ? 'book' : 'books'}`
+                  : `${totalCount} ${totalCount === 1 ? 'record' : 'records'}`}
+              </p>
             </div>
 
             <div className="flex items-center gap-2">

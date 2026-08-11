@@ -5,6 +5,7 @@ import { useUIStore } from '@/store/ui.store';
 import { useAuthStore } from '@/store/auth.store';
 import { apiClient } from '@/services/api-client';
 import { useQueryClient } from '@tanstack/react-query';
+import type { User } from '@/types';
 
 /** Syncs the Zustand theme with localStorage + the OS preference on first mount. */
 export function useTheme() {
@@ -15,18 +16,29 @@ export function useTheme() {
 
   useEffect(() => {
     const stored = localStorage.getItem('et-theme') as 'light' | 'dark' | null;
-    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    setTheme(stored ?? (prefersDark ? 'dark' : 'light'));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    if (stored) {
+      setTheme(stored);
+    } else {
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      setTheme(prefersDark ? 'dark' : 'light');
+    }
+  }, [setTheme]);
 
   const toggleTheme = async () => {
     const nextTheme = theme === 'dark' ? 'light' : 'dark';
+    
+    // Immediately apply theme state & DOM changes
     setTheme(nextTheme);
+
+    // Update React Query cache in-place without triggering a refetch flicker
+    qc.setQueryData<User | undefined>(['auth', 'me'], (old) => {
+      if (!old) return old;
+      return { ...old, theme: nextTheme };
+    });
+
     if (user) {
       try {
         await apiClient.patch('/settings', { theme: nextTheme });
-        qc.invalidateQueries({ queryKey: ['auth', 'me'] });
       } catch (e) {
         // Ignore background sync errors
       }

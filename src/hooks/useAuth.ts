@@ -17,7 +17,10 @@ export function useCurrentUser() {
       const user = await apiClient.get<User>('/auth/me');
       setUser(user);
       if (user.theme) {
-        setTheme(user.theme);
+        const storedTheme = typeof window !== 'undefined' ? localStorage.getItem('et-theme') : null;
+        if (!storedTheme) {
+          setTheme(user.theme);
+        }
       }
       return user;
     },
