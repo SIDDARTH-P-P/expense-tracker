@@ -1,13 +1,12 @@
 import { NextRequest } from 'next/server';
 import { userRepository } from '@/repositories/user.repository';
 import { apiSuccess, apiError } from '@/lib/utils/api-response';
+import { sendResetPasswordEmail } from '@/lib/services/mailer.service';
+import jwt from 'jsonwebtoken';
 
-/**
- * NOTE: This is a scaffold. Wire up a transactional email provider
- * (Resend, SendGrid, SES) to actually deliver the reset link. To avoid
- * leaking which emails are registered, we always return a generic success
- * response regardless of whether the account exists.
- */
+const JWT_SECRET = process.env.JWT_SECRET || 'secret';
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+
 export async function POST(req: NextRequest) {
   try {
     const { email } = await req.json();
@@ -15,8 +14,21 @@ export async function POST(req: NextRequest) {
 
     const user = await userRepository.findByEmail(email);
     if (user) {
-      // TODO: generate a signed reset token and email it via your provider.
-      console.log(`[forgot-password] Reset requested for ${email}`);
+      const resetToken = jwt.sign(
+        { userId: user.id, email: user.email },
+        JWT_SECRET,
+        { expiresIn: '10m' }
+      );
+
+      const resetUrl = `${APP_URL}/reset-password?token=${encodeURIComponent(resetToken)}`;
+
+      await sendResetPasswordEmail({
+        to: user.email,
+        name: user.name,
+        resetUrl,
+      });
+
+      console.log(`[forgot-password] Reset link emailed to ${email}`);
     }
 
     return apiSuccess({ message: 'If an account exists for that email, a reset link has been sent.' });
@@ -25,3 +37,4 @@ export async function POST(req: NextRequest) {
     return apiError('Something went wrong.', 500);
   }
 }
+
