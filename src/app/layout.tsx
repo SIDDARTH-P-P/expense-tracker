@@ -6,12 +6,21 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: {
-    default: 'Ledgerly — Track every rupee, dollar, and euro',
-    template: '%s · Ledgerly ',
+    default: 'TagIt',
+    template: '%s · TagIt',
   },
   description:
     'A premium personal finance and expense tracker. Track income and expenses, visualize spending, and stay on top of your budget.',
   keywords: ['expense tracker', 'budget app', 'personal finance', 'money manager'],
+  icons: {
+    icon: [
+      { url: '/favicon.ico' },
+      { url: '/icon.png', type: 'image/png' },
+      { url: '/favicon.png', type: 'image/png' },
+    ],
+    shortcut: '/favicon.ico',
+    apple: '/apple-icon.png',
+  },
   manifest: '/manifest.json',
 };
 

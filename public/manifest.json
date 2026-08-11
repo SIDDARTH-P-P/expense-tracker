@@ -1,10 +1,16 @@
 {
-  "name": "Ledgerly",
-  "short_name": "Ledgerly",
+  "name": "TagIt",
+  "short_name": "TagIt",
   "description": "A premium personal finance and expense tracker.",
   "start_url": "/dashboard",
   "display": "standalone",
   "background_color": "#0b0e14",
   "theme_color": "#0b0e14",
-  "icons": []
+  "icons": [
+    {
+      "src": "/icon.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
 }

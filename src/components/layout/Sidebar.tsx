@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FiZap, FiShield, FiLogOut } from 'react-icons/fi';
@@ -15,35 +16,22 @@ export function Sidebar() {
   const pathname = usePathname();
   const logout = useLogout();
   const authUser = useAuthStore((s) => s.user);
-  const { data: user } = useCurrentUser();
+  const { data: user, isLoading } = useCurrentUser();
   const displayUser = user ?? authUser;
 
   return (
     <aside className="hidden lg:flex h-screen w-64 flex-col border-r border-border/50 bg-surface/60 backdrop-blur-xl">
       {/* Logo */}
-      <div className="flex items-center gap-3 px-6 py-5 border-b border-border/40">
-        <div className="flex h-9 w-9 items-center justify-center rounded-2xl gradient-primary text-white shadow-glow">
-          <FiZap size={18} />
-        </div>
-        <span className="font-display text-lg font-bold gradient-text">Ledgerly</span>
+      <div className="flex items-center px-6 py-3 border-b border-border/40">
+        <Link href="/dashboard" className="relative h-16 w-36 flex items-center">
+          <Image src="/tagit-logo.png" alt="TagIt Logo" fill className="object-contain object-left" priority />
+        </Link>
       </div>
 
-      {/* User card */}
-      <div className="mx-4 my-4 rounded-2xl bg-surface-2/80 p-3.5 flex items-center gap-3">
-        <Avatar name={displayUser?.name ?? 'U'} size={38} className="shrink-0 ring-2 ring-primary/20" />
-        <div className="min-w-0">
-          <p className="text-sm font-semibold truncate">{displayUser?.name ?? '—'}</p>
-          <p className="text-xs text-muted truncate">{displayUser?.email ?? ''}</p>
-        </div>
-        {displayUser?.role === 'admin' && (
-          <span className="ml-auto shrink-0 rounded-full bg-primary/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider text-primary">
-            Admin
-          </span>
-        )}
-      </div>
+
 
       {/* Nav */}
-      <nav className="flex flex-1 flex-col gap-1 px-3 overflow-y-auto">
+      <nav className="flex flex-1 flex-col gap-1 px-3 pt-4 overflow-y-auto">
         {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
           const isActive = pathname.startsWith(href);
           return (

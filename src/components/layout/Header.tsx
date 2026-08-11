@@ -14,6 +14,7 @@ import { useDashboardSummary } from '@/hooks/useDashboard';
 import { useUIStore } from '@/store/ui.store';
 import { cn } from '@/lib/utils/cn';
 import Link from 'next/link';
+import Image from 'next/image';
 
 function greeting() {
   const h = new Date().getHours();
@@ -67,6 +68,11 @@ export function Header() {
         style={{ paddingTop: 'env(safe-area-inset-top)' }}
       >
         <div className="flex items-center gap-3 px-4 py-3 sm:px-6 lg:px-8">
+          {/* Mobile brand logo */}
+          <Link href="/dashboard" className="relative h-10 w-24 lg:hidden shrink-0">
+            <Image src="/tagit-logo.png" alt="TagIt Logo" fill className="object-contain object-left" priority />
+          </Link>
+
           {/* Left — greeting + name */}
           <div className="min-w-0 flex-1">
             {isLoading ? (
@@ -145,12 +151,16 @@ export function Header() {
             </Link>
 
             <Link href="/profile" aria-label="Profile" className="ml-1">
-              <Avatar
-                name={user?.name ?? 'U'}
-                src={user?.avatar}
-                size={36}
-                className="ring-2 ring-primary/20 hover:ring-primary/50 transition-all"
-              />
+              {isLoading && !user ? (
+                <div className="h-[36px] w-[36px] rounded-full bg-white/10 animate-pulse ring-2 ring-primary/10" />
+              ) : (
+                <Avatar
+                  name={user?.name || 'User'}
+                  src={user?.avatar}
+                  size={36}
+                  className="ring-2 ring-primary/20 hover:ring-primary/50 transition-all"
+                />
+              )}
             </Link>
           </div>
         </div>

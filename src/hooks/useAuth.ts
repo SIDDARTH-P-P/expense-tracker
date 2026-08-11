@@ -77,23 +77,23 @@ export function useLogout() {
   const qc = useQueryClient();
 
   return useMutation({
-    mutationFn: () => apiClient.post('/auth/logout'),
+    mutationFn: async () => {
+      if (typeof window !== 'undefined') {
+        (window as unknown as Record<string, unknown>).__IS_LOGGING_OUT = true;
+      }
+      return apiClient.post('/auth/logout');
+    },
     onSuccess: () => {
       setUser(null);
-      // Clear ALL cached queries so the next user starts with a clean slate.
       qc.clear();
       toast.success('Logged out successfully.');
-      // router.refresh() tells Next.js server state changed (cookie deleted),
-      // then push to /login so middleware sees no token.
-      router.refresh();
-      router.push('/login');
+      window.location.replace('/login');
     },
     onError: () => {
       setUser(null);
       qc.clear();
       toast.success('Logged out successfully.');
-      router.refresh();
-      router.push('/login');
+      window.location.replace('/login');
     },
   });
 }

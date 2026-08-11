@@ -18,9 +18,9 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   const json = await res.json().catch(() => ({}));
 
-  // Session expired or unauthorized → redirect to login
+  // Session expired or unauthorized → redirect to login (unless user is intentionally logging out)
   if (res.status === 401 || res.status === 403) {
-    if (typeof window !== 'undefined') {
+    if (typeof window !== 'undefined' && !(window as unknown as Record<string, unknown>).__IS_LOGGING_OUT) {
       const currentPath = window.location.pathname;
       // Avoid redirect loop on the login page itself
       if (!currentPath.startsWith('/login')) {

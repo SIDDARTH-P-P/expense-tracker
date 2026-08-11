@@ -10,13 +10,9 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         <div className="absolute -bottom-24 -left-16 h-80 w-80 rounded-full bg-purple-600/15 blur-3xl pointer-events-none" />
 
         {/* Header Logo */}
-        <Link href="/" className="relative z-10 flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/30 font-bold text-lg">
-            V
-          </div>
-          <div className="flex flex-col">
-            <span className="font-display text-xl font-bold tracking-tight text-white">VaultCash</span>
-            <span className="text-[10px] text-white/50 font-medium">FINANCIAL SUITE</span>
+        <Link href="/" className="relative z-10 flex items-center">
+          <div className="relative h-16 w-52">
+            <Image src="/tagit-logo.png" alt="TagIt Logo" fill className="object-contain object-left" priority />
           </div>
         </Link>
 
@@ -37,11 +33,11 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             Easy way for all your transactions
           </h2>
           <p className="mt-3 text-sm text-white/60 max-w-sm">
-            Manage your wallet, split bills with friends, and track every single expense effortlessly.
+            Tag it, pay it, and track every single expense effortlessly.
           </p>
         </div>
 
-        <p className="relative z-10 text-xs text-white/40">© {new Date().getFullYear()} VaultCash. All rights reserved.</p>
+        <p className="relative z-10 text-xs text-white/40">© {new Date().getFullYear()} TagIt. All rights reserved.</p>
       </div>
 
       {/* Main Auth Form Container */}

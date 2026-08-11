@@ -1,4 +1,4 @@
-# Ledgerly — Premium Expense Tracker
+# TagIt — Tag it. Pay it. Track it.
 
 A production-ready, full-stack expense tracker built with Next.js 15 (App Router), React 19,
 TypeScript, MongoDB, and a glassmorphism-inspired design system. Mobile-first, dark/light mode,

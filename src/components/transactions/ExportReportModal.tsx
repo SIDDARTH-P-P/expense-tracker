@@ -215,7 +215,7 @@ function downloadCSV(items: Transaction[]) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `ledgerly-report-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.download = `tagit-report-${new Date().toISOString().slice(0, 10)}.csv`;
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -270,7 +270,7 @@ function downloadExcel(items: Transaction[]) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `ledgerly-report-${new Date().toISOString().slice(0, 10)}.xls`;
+  a.download = `tagit-report-${new Date().toISOString().slice(0, 10)}.xls`;
   a.click();
   URL.revokeObjectURL(url);
 }
@@ -288,7 +288,7 @@ function downloadPDF(items: Transaction[]) {
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Transaction Report - Ledgerly</title>
+  <title>Transaction Report - TagIt</title>
   <style>
     body { font-family: system-ui, -apple-system, sans-serif; padding: 24px; color: #111; }
     h1 { margin-bottom: 4px; font-size: 24px; color: #10B981; }
@@ -306,7 +306,7 @@ function downloadPDF(items: Transaction[]) {
   </style>
 </head>
 <body>
-  <h1>Ledgerly - Financial Report</h1>
+  <h1>TagIt - Financial Report</h1>
   <p class="subtitle">Generated on ${new Date().toLocaleString()} | Total Records: ${items.length}</p>
 
   <div class="stats">

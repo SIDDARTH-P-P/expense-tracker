@@ -4,7 +4,7 @@ const SMTP_HOST = process.env.SMTP_HOST || 'smtp.gmail.com';
 const SMTP_PORT = parseInt(process.env.SMTP_PORT || '465', 10);
 const SMTP_USER = process.env.SMTP_USER || 'admin.expenses@gmail.com';
 const SMTP_PASS = process.env.SMTP_PASS || 'gfiejjrisdusuzqk';
-const EMAIL_FROM = process.env.EMAIL_FROM || 'VaultCash Support <admin.expenses@gmail.com>';
+const EMAIL_FROM = process.env.EMAIL_FROM || 'TagIt Support <admin.expenses@gmail.com>';
 
 export const transporter = nodemailer.createTransport({
   host: SMTP_HOST,
@@ -34,7 +34,7 @@ export function getResetPasswordTemplate(name: string, resetUrl: string): string
   }
 
   const isLocal = !siteUrl || siteUrl.includes('localhost') || siteUrl.includes('127.0.0.1');
-  const siteDomain = isLocal ? 'VaultCash Financial Suite' : siteUrl.replace(/^https?:\/\//, '');
+  const siteDomain = isLocal ? 'TagIt Suite' : siteUrl.replace(/^https?:\/\//, '');
 
   return `
 <!DOCTYPE html>
@@ -42,7 +42,7 @@ export function getResetPasswordTemplate(name: string, resetUrl: string): string
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Reset Password</title>
+  <title>Reset Password - TagIt</title>
   <style>
     body {
       margin: 0;
@@ -72,8 +72,16 @@ export function getResetPasswordTemplate(name: string, resetUrl: string): string
       font-weight: 700;
       color: #10b981;
       margin-top: 0;
-      margin-bottom: 20px;
+      margin-bottom: 4px;
       letter-spacing: -0.02em;
+    }
+    .subtagline {
+      font-size: 12px;
+      color: #10b981;
+      font-weight: 600;
+      margin-bottom: 20px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
     }
     .body-text {
       font-size: 15px;
@@ -127,10 +135,12 @@ export function getResetPasswordTemplate(name: string, resetUrl: string): string
 <body>
   <div class="wrapper">
     <div class="container">
-      <h1 class="heading">Hello ${userName}!</h1>
+      <h1 class="heading">TagIt Password Reset</h1>
+      <div class="subtagline">Tag it. Pay it. Track it.</div>
       
-      <p class="body-text">We received a request to reset your account password.</p>
-      <p class="body-text">Please use the link below to proceed (link expires in 10 minutes).</p>
+      <p class="body-text">Hello ${userName},</p>
+      <p class="body-text">We received a request to reset your TagIt account password.</p>
+      <p class="body-text">Please click the button below to reset your password (link expires in 10 minutes):</p>
 
       <div class="btn-container">
         <a href="${resetUrl}" target="_blank" class="btn">Reset Password</a>
@@ -138,10 +148,10 @@ export function getResetPasswordTemplate(name: string, resetUrl: string): string
 
       <p class="warning-text">Important: For your security, do not share this link with anyone.</p>
 
-      <p class="disclaimer-text">If you did not request this link or this email has been sent to you in error, please contact our support team.</p>
+      <p class="disclaimer-text">If you did not request this link or this email was sent in error, please ignore it.</p>
 
       <div class="footer-box">
-        ${isLocal ? '💻 VaultCash Financial Suite' : `💻 <a href="${siteUrl}" target="_blank" class="footer-link">${siteDomain}</a>`}
+        ${isLocal ? '🏷️ TagIt — Tag it. Pay it. Track it.' : `🏷️ <a href="${siteUrl}" target="_blank" class="footer-link">${siteDomain}</a>`}
       </div>
     </div>
   </div>
@@ -156,7 +166,7 @@ export async function sendResetPasswordEmail({ to, name, resetUrl }: SendResetPa
   const mailOptions = {
     from: EMAIL_FROM,
     to,
-    subject: 'Reset your password',
+    subject: 'Reset your password - TagIt',
     html,
   };
 
@@ -180,7 +190,7 @@ export function getOtpTemplate(name: string, otp: string): string {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Verification Code</title>
+  <title>Verification Code - TagIt</title>
   <style>
     body {
       margin: 0;
@@ -207,12 +217,20 @@ export function getOtpTemplate(name: string, otp: string): string {
       text-align: center;
     }
     .heading {
-      font-size: 26px;
-      font-weight: 700;
+      font-size: 28px;
+      font-weight: 800;
       color: #10b981;
       margin-top: 0;
-      margin-bottom: 16px;
+      margin-bottom: 4px;
       letter-spacing: -0.02em;
+    }
+    .subtagline {
+      font-size: 12px;
+      color: #10b981;
+      font-weight: 600;
+      margin-bottom: 20px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
     }
     .body-text {
       font-size: 15px;
@@ -223,7 +241,7 @@ export function getOtpTemplate(name: string, otp: string): string {
     .otp-box {
       margin: 28px 0;
       background-color: #16161f;
-      border: 1px border rgba(16, 185, 129, 0.3);
+      border: 1px solid rgba(16, 185, 129, 0.3);
       border-radius: 12px;
       padding: 20px 24px;
       display: inline-block;
@@ -263,20 +281,21 @@ export function getOtpTemplate(name: string, otp: string): string {
 <body>
   <div class="wrapper">
     <div class="container">
-      <h1 class="heading">Verify Your Account</h1>
+      <h1 class="heading">TagIt</h1>
+      <div class="subtagline">Tag it. Pay it. Track it.</div>
       
       <p class="body-text">Hello ${userName},</p>
-      <p class="body-text">Thank you for registering with VaultCash. Please use the verification code below to complete your registration:</p>
+      <p class="body-text">Thank you for registering with TagIt. Please enter the 6-digit verification code below to activate your account:</p>
 
       <div class="otp-box">
         <div class="otp-code">${otp}</div>
       </div>
 
-      <p class="warning-text">This code will expire in 10 minutes.</p>
-      <p class="disclaimer-text">If you did not initiate this sign-up request, please ignore this email.</p>
+      <p class="warning-text">This verification code will expire in 10 minutes.</p>
+      <p class="disclaimer-text">If you did not initiate this registration, please ignore this email.</p>
 
       <div class="footer-box">
-        💻 VaultCash Financial Suite
+        🏷️ TagIt — Tag it. Pay it. Track it.
       </div>
     </div>
   </div>
@@ -291,7 +310,7 @@ export async function sendOtpEmail({ to, name, otp }: SendOtpEmailParams) {
   const mailOptions = {
     from: EMAIL_FROM,
     to,
-    subject: `${otp} is your VaultCash verification code`,
+    subject: `${otp} is your TagIt verification code`,
     html,
   };
 

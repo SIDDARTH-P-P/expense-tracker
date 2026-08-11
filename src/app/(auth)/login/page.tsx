@@ -21,17 +21,7 @@ function SessionExpiredAlert() {
     }
   }, [reason]);
 
-  if (reason !== 'session_expired') return null;
-
-  return (
-    <div className="mb-6 flex items-start gap-3 rounded-2xl border border-amber-500/30 bg-amber-500/10 p-4 text-amber-300">
-      <FiAlertCircle size={18} className="mt-0.5 shrink-0" />
-      <div>
-        <h4 className="text-xs font-bold">Session Expired</h4>
-        <p className="mt-0.5 text-[11px] opacity-90">Your session has expired. Please log in again to continue.</p>
-      </div>
-    </div>
-  );
+  return null;
 }
 
 export default function LoginPage() {

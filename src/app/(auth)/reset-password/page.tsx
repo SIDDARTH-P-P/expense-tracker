@@ -169,7 +169,7 @@ function ResetPasswordForm() {
       </div>
 
       <p className="mt-8 text-center text-[10px] text-white/40 leading-relaxed">
-        Copyright © 2026 VaultCash Financial Suite. All Rights Reserved.
+        Copyright © 2026 TagIt. All Rights Reserved.
       </p>
     </div>
   );

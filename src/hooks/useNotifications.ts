@@ -91,7 +91,7 @@ function showBrowserNotification(title: string, body: string, icon?: string) {
       body,
       icon: icon ?? '/manifest.json', // fallback
       badge: '/manifest.json',
-      tag: `ledgerly-${Date.now()}`,
+      tag: `tagit-${Date.now()}`,
       requireInteraction: false,
       silent: true, // we play our own sound
     });
