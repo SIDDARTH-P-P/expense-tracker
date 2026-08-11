@@ -70,7 +70,8 @@ export const notificationService = {
   },
 
   broadcastNotification(userId: string, notification: INotification) {
-    const clients = sseClients.get(userId);
+    const key = String(userId);
+    const clients = sseClients.get(key);
     if (!clients) return;
 
     const payload = {
@@ -92,7 +93,8 @@ export const notificationService = {
   },
 
   async broadcastUnreadCount(userId: string) {
-    const clients = sseClients.get(userId);
+    const key = String(userId);
+    const clients = sseClients.get(key);
     if (!clients || clients.size === 0) return;
 
     const count = await this.getUnreadCount(userId);
@@ -102,7 +104,8 @@ export const notificationService = {
   },
 
   broadcastSettingsUpdate(userId: string, settings: { theme?: string; currency?: string; language?: string }) {
-    const clients = sseClients.get(userId);
+    const key = String(userId);
+    const clients = sseClients.get(key);
     if (!clients || clients.size === 0) return;
 
     clients.forEach((controller) => {
@@ -111,10 +114,11 @@ export const notificationService = {
   },
 
   registerClient(userId: string, controller: SSEController) {
-    if (!sseClients.has(userId)) {
-      sseClients.set(userId, new Set());
+    const key = String(userId);
+    if (!sseClients.has(key)) {
+      sseClients.set(key, new Set());
     }
-    const clients = sseClients.get(userId)!;
+    const clients = sseClients.get(key)!;
     clients.add(controller);
 
     // Send initial count
@@ -125,7 +129,7 @@ export const notificationService = {
     return () => {
       clients.delete(controller);
       if (clients.size === 0) {
-        sseClients.delete(userId);
+        sseClients.delete(key);
       }
     };
   },

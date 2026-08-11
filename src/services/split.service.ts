@@ -35,6 +35,15 @@ function stringifyMongoId(value: unknown) {
   return String(value);
 }
 
+async function findUserByEmail(email?: string | null, session?: mongoose.ClientSession | null) {
+  if (!email || !email.trim()) return null;
+  const clean = email.trim();
+  const escaped = clean.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+  return User.findOne({
+    email: { $regex: new RegExp(`^${escaped}$`, 'i') },
+  }).session(session || null);
+}
+
 async function getOrCreateSplitCategory(userId: string | Types.ObjectId, session?: mongoose.ClientSession) {
   const category = await Category.findOne({ userId, name: 'Split' }).session(session || null);
   if (category) return category;
@@ -186,7 +195,7 @@ export const splitService = {
       if (!payerSplitUser) throw new SplitError('Payer not found.', 422);
 
       // 1. Create Payer Transaction (full Expense) if registered
-      const payerUser = await User.findOne({ email: payerSplitUser.email.toLowerCase() }).session(useTransaction ? dbSession : null);
+      const payerUser = await findUserByEmail(payerSplitUser.email, useTransaction ? dbSession : null);
       if (payerUser) {
         const cat = await getOrCreateSplitCategory(payerUser._id, useTransaction ? dbSession : undefined);
         const txRecordId = await generateRecordId('EXP');
@@ -217,19 +226,17 @@ export const splitService = {
         if (m.userId.toString() === input.paidBy) continue; // Payer doesn't owe
 
         const subSplitUser = await SplitUser.findById(m.userId).session(useTransaction ? dbSession : null);
-        if (!subSplitUser) continue;
+        if (!subSplitUser || !subSplitUser.email) continue;
 
-        const subUser = await User.findOne({ email: subSplitUser.email.toLowerCase() }).session(useTransaction ? dbSession : null);
+        const subUser = await findUserByEmail(subSplitUser.email, useTransaction ? dbSession : null);
         if (subUser) {
-          if (subUser._id.toString() !== userId) {
-            notificationsToCreate.push({
-              targetUserId: subUser._id.toString(),
-              title: `${payerName} added you to a split`,
-              message: `You owe ₹${m.shareAmount} for "${input.title}"`,
-              type: 'Split Created',
-              relatedId: split._id.toString(),
-            });
-          }
+          notificationsToCreate.push({
+            targetUserId: subUser._id.toString(),
+            title: `${payerName} added you to a split`,
+            message: `You owe ₹${m.shareAmount} for "${input.title}"`,
+            type: 'Split Created',
+            relatedId: split._id.toString(),
+          });
         }
       }
 
@@ -367,7 +374,7 @@ export const splitService = {
       if (!payerSplitUser) throw new SplitError('Payer not found.', 422);
 
       // Create payer transaction if registered
-      const payerUser = await User.findOne({ email: payerSplitUser.email.toLowerCase() }).session(useTransaction ? dbSession : null);
+      const payerUser = await findUserByEmail(payerSplitUser.email, useTransaction ? dbSession : null);
       if (payerUser) {
         const cat = await getOrCreateSplitCategory(payerUser._id, useTransaction ? dbSession : undefined);
         const txRecordId = await generateRecordId('EXP');
@@ -397,19 +404,17 @@ export const splitService = {
         if (m.userId.toString() === merged.paidBy) continue;
 
         const subSplitUser = await SplitUser.findById(m.userId).session(useTransaction ? dbSession : null);
-        if (!subSplitUser) continue;
+        if (!subSplitUser || !subSplitUser.email) continue;
 
-        const subUser = await User.findOne({ email: subSplitUser.email.toLowerCase() }).session(useTransaction ? dbSession : null);
+        const subUser = await findUserByEmail(subSplitUser.email, useTransaction ? dbSession : null);
         if (subUser) {
-          if (subUser._id.toString() !== userId) {
-            notificationsToCreate.push({
-              targetUserId: subUser._id.toString(),
-              title: `Split "${merged.title}" updated`,
-              message: `Your share is now ₹${m.shareAmount}`,
-              type: 'Split Created',
-              relatedId: existing._id.toString(),
-            });
-          }
+          notificationsToCreate.push({
+            targetUserId: subUser._id.toString(),
+            title: `Split "${merged.title}" updated`,
+            message: `Your share is now ₹${m.shareAmount}`,
+            type: 'Split Created',
+            relatedId: existing._id.toString(),
+          });
         }
       }
 
@@ -468,10 +473,10 @@ export const splitService = {
     // Send notifications to all pending members
     for (const m of split.members) {
       if (m.userId && typeof m.userId !== 'string' && !m.paid) {
-        const memberEmail = (m.userId as any).email?.toLowerCase();
-        if (memberEmail && memberEmail !== payerEmail) {
-          const targetUser = await User.findOne({ email: memberEmail });
-          if (targetUser && targetUser._id.toString() !== userId) {
+        const memberEmail = (m.userId as any).email;
+        if (memberEmail && memberEmail.trim().toLowerCase() !== payerEmail.trim().toLowerCase()) {
+          const targetUser = await findUserByEmail(memberEmail);
+          if (targetUser) {
             await notificationService.create(targetUser._id.toString(), {
               title: `Reminder: Split "${split.title}"`,
               message: `Please settle your share of ₹${m.shareAmount} for "${split.title}" to ${payerName}`,
@@ -543,11 +548,12 @@ export const splitService = {
       const notificationsToCreate: { targetUserId: string; title: string; message: string; type: 'Split Created' | 'Split Paid' | 'Split Reminder'; relatedId: string }[] = [];
 
       if (payerSplitUser && targetSplitUser) {
-        const payerUser = await User.findOne({ email: payerSplitUser.email.toLowerCase() }).session(useTransaction ? dbSession : null);
-
-        // Prepare Notification to Creator (only if creator is not the actor)
+        const payerUser = await findUserByEmail(payerSplitUser.email, useTransaction ? dbSession : null);
+        const targetUser = await findUserByEmail(targetSplitUser.email, useTransaction ? dbSession : null);
         const creatorUser = await User.findById(split.userId).session(useTransaction ? dbSession : null);
-        if (creatorUser && creatorUser._id.toString() !== userId) {
+
+        // Prepare Notification to Creator
+        if (creatorUser) {
           notificationsToCreate.push({
             targetUserId: creatorUser._id.toString(),
             title: `Split Paid by ${targetSplitUser.name}`,
@@ -557,11 +563,10 @@ export const splitService = {
           });
         }
 
-        // Also notify the payer (the person who paid the bill) if different from creator and actor
+        // Also notify the payer if different from creator
         if (
           payerUser &&
-          payerUser._id.toString() !== split.userId.toString() &&
-          payerUser._id.toString() !== userId
+          payerUser._id.toString() !== creatorUser?._id.toString()
         ) {
           notificationsToCreate.push({
             targetUserId: payerUser._id.toString(),
@@ -572,11 +577,12 @@ export const splitService = {
           });
         }
 
-        // Find member user account if registered
-        const targetUser = await User.findOne({ email: targetSplitUser.email.toLowerCase() }).session(useTransaction ? dbSession : null);
-
-        // Notify member whose share was marked paid (if they are not the actor)
-        if (targetUser && targetUser._id.toString() !== userId) {
+        // Notify member whose share was marked paid
+        if (
+          targetUser &&
+          targetUser._id.toString() !== creatorUser?._id.toString() &&
+          targetUser._id.toString() !== payerUser?._id.toString()
+        ) {
           notificationsToCreate.push({
             targetUserId: targetUser._id.toString(),
             title: `Split Payment Confirmed`,
