@@ -240,14 +240,18 @@ export const splitService = {
         }
       }
 
-      // Always notify creator/actor so live notification fires for current user session
-      notificationsToCreate.push({
-        targetUserId: userId,
-        title: `Split Created: "${input.title}"`,
-        message: `Split of ₹${input.amount} created with ${members.length} members.`,
-        type: 'Split Created',
-        relatedId: split._id.toString(),
-      });
+      // If payer is a registered user and not the creator, notify payer
+      if (payerUser && payerUser._id.toString() !== userId) {
+        const creatorSU = await this.ensureCreatorSplitUser(userId);
+        const creatorName = creatorSU ? creatorSU.name : 'Someone';
+        notificationsToCreate.push({
+          targetUserId: payerUser._id.toString(),
+          title: `${creatorName} added a split`,
+          message: `Split "${input.title}" for ₹${input.amount} (Paid by you)`,
+          type: 'Split Created',
+          relatedId: split._id.toString(),
+        });
+      }
 
       // 3. Create Audit Log
       await Audit.create([{
@@ -416,7 +420,7 @@ export const splitService = {
         if (!subSplitUser || !subSplitUser.email) continue;
 
         const subUser = await findUserByEmail(subSplitUser.email);
-        if (subUser) {
+        if (subUser && subUser._id.toString() !== userId) {
           notificationsToCreate.push({
             targetUserId: subUser._id.toString(),
             title: `Split "${merged.title}" updated`,
@@ -505,14 +509,6 @@ export const splitService = {
       }
     }
 
-    // Always create notification for active user so live SSE notification fires for reminder sender
-    await notificationService.create(userId, {
-      title: `Reminder Sent for "${split.title}"`,
-      message: `Payment reminder sent for "${split.title}".`,
-      type: 'Split Reminder',
-      relatedId: split._id.toString(),
-    });
-
     return split;
   },
 
@@ -581,8 +577,8 @@ export const splitService = {
         const creatorUserIdStr = creatorUser?._id?.toString();
         const payerUserIdStr = payerUser?._id?.toString();
 
-        // 1. Notify the member whose share was marked paid
-        if (targetUserIdStr) {
+        // 1. Notify member whose share was marked paid (if not the actor)
+        if (targetUserIdStr && targetUserIdStr !== userId) {
           notificationsToCreate.push({
             targetUserId: targetUserIdStr,
             title: `Split Payment Confirmed`,
@@ -592,8 +588,8 @@ export const splitService = {
           });
         }
 
-        // 2. Notify Creator (if creator is not the paying target member)
-        if (creatorUserIdStr && creatorUserIdStr !== targetUserIdStr) {
+        // 2. Notify Creator (if creator is not actor and not paying member)
+        if (creatorUserIdStr && creatorUserIdStr !== userId && creatorUserIdStr !== targetUserIdStr) {
           notificationsToCreate.push({
             targetUserId: creatorUserIdStr,
             title: `Split Paid by ${targetSplitUser.name}`,
@@ -603,23 +599,17 @@ export const splitService = {
           });
         }
 
-        // 3. Notify Payer (if payer is different from creator and target member)
-        if (payerUserIdStr && payerUserIdStr !== creatorUserIdStr && payerUserIdStr !== targetUserIdStr) {
+        // 3. Notify Payer (if payer is not actor, not creator, and not paying member)
+        if (
+          payerUserIdStr &&
+          payerUserIdStr !== userId &&
+          payerUserIdStr !== creatorUserIdStr &&
+          payerUserIdStr !== targetUserIdStr
+        ) {
           notificationsToCreate.push({
             targetUserId: payerUserIdStr,
             title: `Split Paid by ${targetSplitUser.name}`,
             message: `${targetSplitUser.name} paid their share of ₹${member.shareAmount} for "${split.title}"`,
-            type: 'Split Paid',
-            relatedId: split._id.toString(),
-          });
-        }
-
-        // 4. Notify Actor (person who clicked Mark Paid, if different from target, creator, and payer)
-        if (userId !== targetUserIdStr && userId !== creatorUserIdStr && userId !== payerUserIdStr) {
-          notificationsToCreate.push({
-            targetUserId: userId,
-            title: `Payment Recorded for "${split.title}"`,
-            message: `Marked ${targetSplitUser.name}'s share of ₹${member.shareAmount} as paid.`,
             type: 'Split Paid',
             relatedId: split._id.toString(),
           });
