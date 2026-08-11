@@ -55,10 +55,10 @@ function ResetPasswordForm() {
       }
 
       setIsSuccess(true);
-      toast.success('Password reset successfully!');
+      toast.success('Password reset successfully! Redirecting to login...');
       setTimeout(() => {
         router.push('/login');
-      }, 2500);
+      }, 1000);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Password reset failed.';
       setErrorMsg(msg);

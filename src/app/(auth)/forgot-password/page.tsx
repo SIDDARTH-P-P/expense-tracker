@@ -22,14 +22,11 @@ export default function ForgotPasswordPage() {
     try {
       await apiClient.post('/auth/forgot-password', { email });
       setSent(true);
-      toast.success('Reset link sent! Redirecting to login page...');
-      setTimeout(() => {
-        router.push('/login');
-      }, 3000);
+      toast.success('Reset link sent to your email! Redirecting to log in...');
+      router.push('/login');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Something went wrong. Please try again.';
       toast.error(msg);
-    } finally {
       setIsLoading(false);
     }
   }

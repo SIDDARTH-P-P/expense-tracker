@@ -41,12 +41,12 @@ export async function GET() {
                 }
                 if (window.opener && !window.opener.closed) {
                   try {
-                    window.opener.location.href = '/dashboard';
+                    window.opener.location.replace('/dashboard');
                     window.close();
                     return;
                   } catch(e) {}
                 }
-                window.location.href = '/dashboard';
+                window.location.replace('/dashboard');
               })
               .catch(err => {
                 alert('Authentication failed: ' + (err.message || 'Error occurred'));

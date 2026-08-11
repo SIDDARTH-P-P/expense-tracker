@@ -84,9 +84,9 @@ export function GoogleAuthModal({ isOpen, onClose, defaultEmail = '' }: GoogleAu
                 throw new Error(data.error || 'Authentication failed on server');
               }
 
-              toast.success(`Signed in as ${data.data.email}`);
-              handleClose();
-              window.location.href = '/dashboard';
+              toast.success(`Welcome, ${data.data?.name || data.data?.email || 'User'}!`);
+              setIsSubmitting(true);
+              window.location.replace('/dashboard');
             } catch (err: unknown) {
               const msg = err instanceof Error ? err.message : 'Google authentication failed';
               toast.error(msg);
