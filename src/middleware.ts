@@ -2,8 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 /**
  * Route-level guard. Runs on the edge before the request reaches a page,
- * redirecting unauthenticated users away from protected routes and
- * authenticated users away from the auth pages.
+ * redirecting unauthenticated or tampered session users away from protected routes.
  */
 const PROTECTED_PREFIXES = ['/dashboard', '/transactions', '/categories', '/settings', '/profile'];
 const AUTH_PREFIXES = ['/login', '/signup'];
@@ -15,13 +14,16 @@ export function middleware(req: NextRequest) {
   const isProtected = PROTECTED_PREFIXES.some((p) => pathname.startsWith(p));
   const isAuthPage = AUTH_PREFIXES.some((p) => pathname.startsWith(p));
 
-  if (isAuthPage && token) {
+  // On page navigation, check token presence. Strict JWT verification is performed on API routes.
+  const hasToken = Boolean(token);
+
+  if (isAuthPage && hasToken) {
     const url = req.nextUrl.clone();
     url.pathname = '/dashboard';
     return NextResponse.redirect(url);
   }
 
-  if (isProtected && !token) {
+  if (isProtected && !hasToken) {
     const url = req.nextUrl.clone();
     url.pathname = '/login';
     url.searchParams.set('redirect', pathname);

@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { cookies } from 'next/headers';
+import type { NextRequest } from 'next/server';
 
 const JWT_SECRET = process.env.JWT_SECRET as string;
 const ACCESS_TOKEN_EXPIRY = '24h';
@@ -71,11 +72,28 @@ export async function clearAuthCookies() {
   cookieStore.set(REFRESH_COOKIE, '', { path: '/', maxAge: 0 });
 }
 
-export async function getCurrentUser(): Promise<JwtPayload | null> {
+export async function getCurrentUser(req?: NextRequest): Promise<JwtPayload | null> {
+  // 1. If NextRequest is passed, check Authorization header first
+  if (req) {
+    const authHeader = req.headers.get('authorization');
+    if (authHeader) {
+      if (authHeader.startsWith('Bearer ')) {
+        const headerToken = authHeader.substring(7).trim();
+        if (!headerToken) return null;
+        // Strictly verify header token - if tampered/invalid, reject immediately!
+        return verifyToken(headerToken);
+      }
+      return null; // Malformed Authorization header -> reject
+    }
+  }
+
+  // 2. Check Cookie if no Authorization header present
   const cookieStore = await cookies();
-  const token = cookieStore.get(ACCESS_COOKIE)?.value;
-  if (!token) return null;
-  return verifyToken(token);
+  const cookieToken = cookieStore.get(ACCESS_COOKIE)?.value ?? cookieStore.get(REFRESH_COOKIE)?.value;
+  if (!cookieToken) return null;
+
+  // Strictly verify cookie token
+  return verifyToken(cookieToken);
 }
 
 export { ACCESS_COOKIE, REFRESH_COOKIE };
