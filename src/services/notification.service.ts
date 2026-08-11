@@ -12,11 +12,12 @@ const globalForNotifications = global as unknown as {
 export const sseClients = globalForNotifications.sseClients || new Map<string, Set<SSEController>>();
 globalForNotifications.sseClients = sseClients;
 
-function sendSSEMessage(controller: SSEController, event: string, data: any) {
+function sendSSEMessage(controller: SSEController, event: string, data: any): boolean {
   try {
     controller.enqueue(new TextEncoder().encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`));
+    return true;
   } catch (err) {
-    // If enqueue fails, client might have disconnected. It will be cleaned up.
+    return false;
   }
 }
 
@@ -95,9 +96,13 @@ export const notificationService = {
       updatedAt: updatedAtStr,
     };
 
+    const dead: SSEController[] = [];
     clients.forEach((controller) => {
-      sendSSEMessage(controller, 'notification', payload);
+      const sent = sendSSEMessage(controller, 'notification', payload);
+      if (!sent) dead.push(controller);
     });
+    dead.forEach((c) => clients.delete(c));
+    if (clients.size === 0) sseClients.delete(key);
   },
 
   async broadcastUnreadCount(userId: string) {
@@ -106,9 +111,13 @@ export const notificationService = {
     if (!clients || clients.size === 0) return;
 
     const count = await this.getUnreadCount(userId);
+    const dead: SSEController[] = [];
     clients.forEach((controller) => {
-      sendSSEMessage(controller, 'unread_count', { count });
+      const sent = sendSSEMessage(controller, 'unread_count', { count });
+      if (!sent) dead.push(controller);
     });
+    dead.forEach((c) => clients.delete(c));
+    if (clients.size === 0) sseClients.delete(key);
   },
 
   broadcastSettingsUpdate(userId: string, settings: { theme?: string; currency?: string; language?: string }) {
@@ -116,9 +125,13 @@ export const notificationService = {
     const clients = sseClients.get(key);
     if (!clients || clients.size === 0) return;
 
+    const dead: SSEController[] = [];
     clients.forEach((controller) => {
-      sendSSEMessage(controller, 'settings_update', settings);
+      const sent = sendSSEMessage(controller, 'settings_update', settings);
+      if (!sent) dead.push(controller);
     });
+    dead.forEach((c) => clients.delete(c));
+    if (clients.size === 0) sseClients.delete(key);
   },
 
   registerClient(userId: string, controller: SSEController) {

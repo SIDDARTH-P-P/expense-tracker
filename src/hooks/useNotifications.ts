@@ -160,7 +160,7 @@ export function useNotifications() {
     requestNotificationPermission();
   }, []);
 
-  // Fetch initial notifications list
+  // Fetch initial notifications list with background fallback polling
   const {
     data: notifications = [],
     isLoading,
@@ -169,7 +169,10 @@ export function useNotifications() {
     queryKey: notificationsQueryKey(userId),
     queryFn: () => apiClient.get<Notification[]>('/notifications'),
     enabled: !!userId,
-    staleTime: 60 * 1000,
+    staleTime: 10 * 1000,
+    refetchInterval: 15 * 1000, // Background sync fallback every 15s so page refresh is never needed!
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
   });
 
   // Compute initial unread count from fetched data
@@ -179,19 +182,25 @@ export function useNotifications() {
   }, [notifications]);
 
   // ——————————————————————————————————————————————————————
-  // SSE connection for real-time updates
+  // SSE connection with infinite reconnection resilience
   // ——————————————————————————————————————————————————————
   useEffect(() => {
     if (!userId) return;
 
     let reconnectTimeout: ReturnType<typeof setTimeout>;
     let retryCount = 0;
-    const maxRetries = 5;
+    let isDisposed = false;
 
     function connect() {
+      if (isDisposed) return;
+
       // Clean up existing connection
       if (eventSourceRef.current) {
-        eventSourceRef.current.close();
+        try {
+          eventSourceRef.current.close();
+        } catch {
+          // ignore
+        }
       }
 
       const es = new EventSource('/api/notifications/sse?t=' + Date.now());
@@ -210,13 +219,13 @@ export function useNotifications() {
             ]
           );
 
-          // 3. Invalidate related queries (splits list, transactions, dashboard)
+          // 2. Invalidate related queries (splits list, transactions, dashboard)
           invalidateRelatedQueries(qc, notification.type);
 
-          // 4. Play notification sound
+          // 3. Play notification sound
           playNotificationSound();
 
-          // 5. Show in-app toast notification
+          // 4. Show in-app toast notification
           toast(notification.title, {
             icon: '🔔',
             duration: 4000,
@@ -228,8 +237,7 @@ export function useNotifications() {
             },
           });
 
-          // 6. Show native browser push notification
-          //    (works even when tab is in background / minimized)
+          // 5. Show native browser push notification
           showBrowserNotification(
             notification.title,
             notification.message
@@ -274,12 +282,18 @@ export function useNotifications() {
       });
 
       es.onerror = () => {
-        es.close();
+        try {
+          es.close();
+        } catch {
+          // ignore
+        }
         eventSourceRef.current = null;
 
-        if (retryCount < maxRetries) {
+        if (!isDisposed) {
           retryCount++;
-          const delay = Math.min(1000 * Math.pow(2, retryCount), 30000);
+          // Infinite retry exponential backoff capped at 10 seconds
+          const delay = Math.min(1000 * Math.pow(1.5, retryCount), 10000);
+          clearTimeout(reconnectTimeout);
           reconnectTimeout = setTimeout(connect, delay);
         }
       };
@@ -287,10 +301,36 @@ export function useNotifications() {
 
     connect();
 
+    // Reconnect immediately on network restoral or tab visibility change
+    const handleOnline = () => {
+      if (!eventSourceRef.current || eventSourceRef.current.readyState === EventSource.CLOSED) {
+        retryCount = 0;
+        connect();
+      }
+    };
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        if (!eventSourceRef.current || eventSourceRef.current.readyState === EventSource.CLOSED) {
+          connect();
+        }
+      }
+    };
+
+    window.addEventListener('online', handleOnline);
+    document.addEventListener('visibilitychange', handleVisibility);
+
     return () => {
+      isDisposed = true;
       clearTimeout(reconnectTimeout);
+      window.removeEventListener('online', handleOnline);
+      document.removeEventListener('visibilitychange', handleVisibility);
       if (eventSourceRef.current) {
-        eventSourceRef.current.close();
+        try {
+          eventSourceRef.current.close();
+        } catch {
+          // ignore
+        }
         eventSourceRef.current = null;
       }
     };
