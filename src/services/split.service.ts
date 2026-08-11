@@ -219,7 +219,7 @@ export const splitService = {
         createdDocs.push({ model: Transaction, id: tx._id });
       }
 
-      // 2. Prepare Notifications for Receivers
+      // 2. Prepare Notifications for Receivers (excluding the creator/actor)
       const notificationsToCreate: { targetUserId: string; title: string; message: string; type: 'Split Created' | 'Split Paid' | 'Split Reminder'; relatedId: string }[] = [];
       const payerName = payerUser ? payerUser.name : payerSplitUser.name;
       for (const m of members) {
@@ -229,7 +229,7 @@ export const splitService = {
         if (!subSplitUser || !subSplitUser.email) continue;
 
         const subUser = await findUserByEmail(subSplitUser.email, useTransaction ? dbSession : null);
-        if (subUser) {
+        if (subUser && subUser._id.toString() !== userId) {
           notificationsToCreate.push({
             targetUserId: subUser._id.toString(),
             title: `${payerName} added you to a split`,
@@ -239,15 +239,6 @@ export const splitService = {
           });
         }
       }
-
-      // Always notify creator/actor so live notification fires for current user session
-      notificationsToCreate.push({
-        targetUserId: userId,
-        title: `Split Created: "${input.title}"`,
-        message: `Split of ₹${input.amount} created with ${members.length} members.`,
-        type: 'Split Created',
-        relatedId: split._id.toString(),
-      });
 
       // 3. Create Audit Log
       await Audit.create([{
@@ -505,14 +496,6 @@ export const splitService = {
       }
     }
 
-    // Always create a notification for the active user so live SSE notification fires
-    await notificationService.create(userId, {
-      title: `Reminder Sent for "${split.title}"`,
-      message: `Payment reminder sent for "${split.title}".`,
-      type: 'Split Reminder',
-      relatedId: split._id.toString(),
-    });
-
     return split;
   },
 
@@ -616,15 +599,6 @@ export const splitService = {
             relatedId: split._id.toString(),
           });
         }
-
-        // Always notify the actor so live notification fires for active user session
-        notificationsToCreate.push({
-          targetUserId: userId,
-          title: `Payment Recorded for "${split.title}"`,
-          message: `Marked ${targetSplitUser.name}'s share of ₹${member.shareAmount} as paid.`,
-          type: 'Split Paid',
-          relatedId: split._id.toString(),
-        });
 
         // Create Settlement Transactions:
         // A. Payer (Payer receives Income share)
