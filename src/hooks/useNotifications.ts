@@ -124,6 +124,7 @@ const SPLIT_NOTIFICATION_TYPES = new Set([
   'Split Created',
   'Split Paid',
   'Split Reminder',
+  'Split Closed',
 ]);
 
 function invalidateRelatedQueries(

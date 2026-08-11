@@ -240,6 +240,15 @@ export const splitService = {
         }
       }
 
+      // Always notify creator/actor so live notification fires for current user session
+      notificationsToCreate.push({
+        targetUserId: userId,
+        title: `Split Created: "${input.title}"`,
+        message: `Split of ₹${input.amount} created with ${members.length} members.`,
+        type: 'Split Created',
+        relatedId: split._id.toString(),
+      });
+
       // 3. Create Audit Log
       await Audit.create([{
         userId: new Types.ObjectId(userId),
@@ -465,28 +474,44 @@ export const splitService = {
     const payerEmail = (split.paidBy as any)?.email?.toLowerCase() || '';
     const payerName = (split.paidBy as any)?.name || 'Someone';
 
+    const isCreator = split.userId.toString() === userId;
     const userSU = await this.ensureCreatorSplitUser(userId);
-    if (!userSU || userSU.email.toLowerCase() !== payerEmail) {
-      throw new SplitError('Only the split creator can send reminders.', 403);
+    const isPayer = userSU && payerEmail && userSU.email.trim().toLowerCase() === payerEmail.trim().toLowerCase();
+
+    if (!isCreator && !isPayer) {
+      throw new SplitError('Only the split creator or payer can send reminders.', 403);
     }
 
+    let reminderCount = 0;
     // Send notifications to all pending members
     for (const m of split.members) {
-      if (m.userId && typeof m.userId !== 'string' && !m.paid) {
-        const memberEmail = (m.userId as any).email;
-        if (memberEmail && memberEmail.trim().toLowerCase() !== payerEmail.trim().toLowerCase()) {
-          const targetUser = await findUserByEmail(memberEmail);
-          if (targetUser) {
-            await notificationService.create(targetUser._id.toString(), {
-              title: `Reminder: Split "${split.title}"`,
-              message: `Please settle your share of ₹${m.shareAmount} for "${split.title}" to ${payerName}`,
-              type: 'Split Reminder',
-              relatedId: split._id.toString(),
-            });
+      if (m.userId && !m.paid) {
+        const memberSU = m.userId as any;
+        const memberEmail = memberSU?.email;
+        if (memberSU && stringifyMongoId(memberSU._id) !== stringifyMongoId(split.paidBy)) {
+          reminderCount++;
+          if (memberEmail) {
+            const targetUser = await findUserByEmail(memberEmail);
+            if (targetUser && targetUser._id.toString() !== userId) {
+              await notificationService.create(targetUser._id.toString(), {
+                title: `Reminder: Split "${split.title}"`,
+                message: `Please settle your share of ₹${m.shareAmount} for "${split.title}" to ${payerName}`,
+                type: 'Split Reminder',
+                relatedId: split._id.toString(),
+              });
+            }
           }
         }
       }
     }
+
+    // Always create a notification for the active user so live SSE notification fires
+    await notificationService.create(userId, {
+      title: `Reminder Sent for "${split.title}"`,
+      message: `Payment reminder sent for "${split.title}".`,
+      type: 'Split Reminder',
+      relatedId: split._id.toString(),
+    });
 
     return split;
   },
@@ -591,6 +616,15 @@ export const splitService = {
             relatedId: split._id.toString(),
           });
         }
+
+        // Always notify the actor so live notification fires for active user session
+        notificationsToCreate.push({
+          targetUserId: userId,
+          title: `Payment Recorded for "${split.title}"`,
+          message: `Marked ${targetSplitUser.name}'s share of ₹${member.shareAmount} as paid.`,
+          type: 'Split Paid',
+          relatedId: split._id.toString(),
+        });
 
         // Create Settlement Transactions:
         // A. Payer (Payer receives Income share)
