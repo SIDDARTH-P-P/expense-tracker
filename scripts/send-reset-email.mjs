@@ -1,12 +1,12 @@
 import nodemailer from 'nodemailer';
 import jwt from 'jsonwebtoken';
 
-const recipient = process.argv[2]
-const userName = process.argv[3]
-const appPassword = process.env.SMTP_PASS
-const jwtSecret = process.env.JWT_SECRET
-const baseUrl = process.env.NEXT_PUBLIC_APP_URL
-const siteDomain = baseUrl.replace(/^https?:\/\//, '');
+const recipient = process.argv[2] || 'admin.expenses@gmail.com';
+const userName = process.argv[3] || 'Siddarth PP';
+const appPassword = process.env.SMTP_PASS || 'gfiejjrisdusuzqk';
+const jwtSecret = process.env.JWT_SECRET || 'some-long-random-string-at-least-32-chars';
+const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+const siteDomain = (baseUrl || 'http://localhost:3000').replace(/^https?:\/\//, '');
 
 // Sign token that expires in 10 minutes
 const token = jwt.sign(
