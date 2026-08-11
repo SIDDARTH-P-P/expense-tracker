@@ -29,6 +29,8 @@ interface UIState {
   setSplitFilterMode: (mode: 'all' | 'own') => void;
 }
 
+let transitionTimer: ReturnType<typeof setTimeout> | null = null;
+
 export const useUIStore = create<UIState>((set, get) => ({
   theme: 'dark',
   isAddSheetOpen: false,
@@ -48,12 +50,21 @@ export const useUIStore = create<UIState>((set, get) => ({
       root.classList.add('theme-transitioning');
       root.classList.toggle('dark', theme === 'dark');
       localStorage.setItem('et-theme', theme);
-      setTimeout(() => {
+      if (transitionTimer) {
+        clearTimeout(transitionTimer);
+      }
+      transitionTimer = setTimeout(() => {
         root.classList.remove('theme-transitioning');
-      }, 300);
+        transitionTimer = null;
+      }, 350);
     }
   },
-  toggleTheme: () => get().setTheme(get().theme === 'dark' ? 'light' : 'dark'),
+  toggleTheme: () => {
+    const isCurrentlyDark = typeof document !== 'undefined'
+      ? document.documentElement.classList.contains('dark')
+      : get().theme === 'dark';
+    get().setTheme(isCurrentlyDark ? 'light' : 'dark');
+  },
   openAddSheet: (type = 'expense') => set({ isAddSheetOpen: true, addSheetKind: 'transaction', addSheetDefaultType: type }),
   openManagementAddSheet: () => {
     const activeTab = get().managementActiveTab;

@@ -38,14 +38,10 @@ export function useLogin() {
     mutationFn: (input: { email: string; password: string; rememberMe?: boolean }) =>
       apiClient.post<User>('/auth/login', input),
     onSuccess: (user) => {
+      qc.clear();
       setUser(user);
       qc.setQueryData(['auth', 'me'], user);
-      // Invalidate categories so the new user's categories load fresh (not a
-      // previous user's cached data).
-      qc.invalidateQueries({ queryKey: ['categories'] });
       toast.success(`Welcome back, ${user.name.split(' ')[0]}!`);
-      // router.refresh() forces Next.js to re-run server components & middleware
-      // so the newly-set auth cookie is recognised before navigating.
       router.refresh();
       router.push('/dashboard');
     },
@@ -62,11 +58,10 @@ export function useSignup() {
     mutationFn: (input: { name: string; email: string; password: string }) =>
       apiClient.post<User>('/auth/signup', input),
     onSuccess: (user) => {
+      qc.clear();
       setUser(user);
       qc.setQueryData(['auth', 'me'], user);
-      qc.invalidateQueries({ queryKey: ['categories'] });
       toast.success('Account created. Welcome to your dashboard!');
-      // router.refresh() so Next.js picks up the new auth cookie server-side.
       router.refresh();
       router.push('/dashboard');
     },

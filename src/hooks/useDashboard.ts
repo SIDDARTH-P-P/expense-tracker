@@ -14,5 +14,7 @@ export function useDashboardSummary(from?: string, to?: string) {
     queryKey: ['dashboard', 'summary', from, to],
     queryFn: () => apiClient.get<DashboardSummary>(`/dashboard/summary${queryStr ? `?${queryStr}` : ''}`),
     staleTime: 60 * 1000,
+    retry: 2,
+    retryDelay: 500,
   });
 }

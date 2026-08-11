@@ -23,7 +23,10 @@ export function useTheme() {
   }, [setTheme]);
 
   const toggleTheme = async () => {
-    const nextTheme = theme === 'dark' ? 'light' : 'dark';
+    const isCurrentlyDark = typeof document !== 'undefined'
+      ? document.documentElement.classList.contains('dark')
+      : theme === 'dark';
+    const nextTheme = isCurrentlyDark ? 'light' : 'dark';
     
     // Immediately apply theme state & DOM changes
     setTheme(nextTheme);
