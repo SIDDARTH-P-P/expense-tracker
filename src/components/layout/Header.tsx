@@ -127,8 +127,10 @@ export function Header() {
               <FiBell size={16} />
               {unreadCount > 0 && (
                 <motion.span
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
+                  key={unreadCount}
+                  initial={{ scale: 0.5, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ type: 'spring', stiffness: 500, damping: 25 }}
                   className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-expense px-1 text-[9px] font-bold text-white ring-2 ring-background"
                 >
                   {unreadCount > 99 ? '99+' : unreadCount}

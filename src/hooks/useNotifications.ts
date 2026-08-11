@@ -201,14 +201,14 @@ export function useNotifications() {
         try {
           const notification: Notification = JSON.parse(event.data);
 
-          // 1. Add to notification cache (real-time list update)
+          // 1. Add to notification cache (real-time list update with deduplication)
           qc.setQueryData<Notification[]>(
             notificationsQueryKey(userId),
-            (prev = []) => [notification, ...prev]
+            (prev = []) => [
+              notification,
+              ...prev.filter((n) => n.id !== notification.id),
+            ]
           );
-
-          // 2. Update unread count
-          setUnreadCount((prev) => prev + 1);
 
           // 3. Invalidate related queries (splits list, transactions, dashboard)
           invalidateRelatedQueries(qc, notification.type);

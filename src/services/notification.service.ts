@@ -64,7 +64,7 @@ export const notificationService = {
 
     // Notify connected SSE clients for this user
     this.broadcastNotification(userId, notification);
-    this.broadcastUnreadCount(userId);
+    await this.broadcastUnreadCount(userId);
 
     return notification;
   },
@@ -72,7 +72,15 @@ export const notificationService = {
   broadcastNotification(userId: string, notification: INotification) {
     const key = String(userId);
     const clients = sseClients.get(key);
-    if (!clients) return;
+    if (!clients || clients.size === 0) return;
+
+    const createdAtStr = notification.createdAt
+      ? new Date(notification.createdAt).toISOString()
+      : new Date().toISOString();
+
+    const updatedAtStr = notification.updatedAt
+      ? new Date(notification.updatedAt).toISOString()
+      : new Date().toISOString();
 
     const payload = {
       id: notification._id.toString(),
@@ -82,9 +90,9 @@ export const notificationService = {
       message: notification.message,
       type: notification.type,
       relatedId: notification.relatedId,
-      read: notification.read,
-      createdAt: notification.createdAt.toISOString(),
-      updatedAt: notification.updatedAt.toISOString(),
+      read: Boolean(notification.read),
+      createdAt: createdAtStr,
+      updatedAt: updatedAtStr,
     };
 
     clients.forEach((controller) => {
