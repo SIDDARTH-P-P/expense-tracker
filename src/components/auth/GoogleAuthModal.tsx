@@ -106,17 +106,25 @@ export function GoogleAuthModal({ isOpen, onClose, defaultEmail = '' }: GoogleAu
   };
 
   const fallbackGoogleAuthPopup = () => {
-    const width = 500;
-    const height = 600;
-    const left = window.screenX + (window.innerWidth - width) / 2;
-    const top = window.screenY + (window.innerHeight - height) / 2;
-
     const redirectUri = `${window.location.origin}/api/auth/google/callback`;
     const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${encodeURIComponent(
       GOOGLE_CLIENT_ID
     )}&redirect_uri=${encodeURIComponent(
       redirectUri
-    )}&response_type=token&scope=email%20profile&prompt=select_account`;
+    )}&response_type=token&scope=${encodeURIComponent(
+      'openid https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile'
+    )}&prompt=select_account`;
+
+    const isMobile = typeof navigator !== 'undefined' && /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    if (isMobile) {
+      window.location.href = googleAuthUrl;
+      return;
+    }
+
+    const width = 500;
+    const height = 600;
+    const left = window.screenX + (window.innerWidth - width) / 2;
+    const top = window.screenY + (window.innerHeight - height) / 2;
 
     const popup = window.open(
       googleAuthUrl,
@@ -125,8 +133,7 @@ export function GoogleAuthModal({ isOpen, onClose, defaultEmail = '' }: GoogleAu
     );
 
     if (!popup) {
-      toast.error('Popup window was blocked by browser. Please allow popups.');
-      setIsSubmitting(false);
+      window.location.href = googleAuthUrl;
     }
   };
 

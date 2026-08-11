@@ -27,6 +27,7 @@ export async function GET() {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({
+                    accessToken: accessToken,
                     email: profile.email,
                     name: profile.name || profile.email.split('@')[0],
                     avatar: profile.picture
@@ -35,16 +36,21 @@ export async function GET() {
               })
               .then(res => res.json())
               .then(data => {
-                if (window.opener) {
-                  window.opener.location.href = '/dashboard';
-                  window.close();
-                } else {
-                  window.location.href = '/dashboard';
+                if (!data.success) {
+                  throw new Error(data.error || 'Server authentication failed');
                 }
+                if (window.opener && !window.opener.closed) {
+                  try {
+                    window.opener.location.href = '/dashboard';
+                    window.close();
+                    return;
+                  } catch(e) {}
+                }
+                window.location.href = '/dashboard';
               })
               .catch(err => {
-                alert('Authentication failed: ' + err.message);
-                window.close();
+                alert('Authentication failed: ' + (err.message || 'Error occurred'));
+                window.location.href = '/login';
               });
             }
           } catch(e) {
