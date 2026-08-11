@@ -35,17 +35,17 @@ function stringifyMongoId(value: unknown) {
   return String(value);
 }
 
-async function findUserByEmail(email?: string | null, session?: mongoose.ClientSession | null) {
+async function findUserByEmail(email?: string | null) {
   if (!email || !email.trim()) return null;
   const clean = email.trim();
   const escaped = clean.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
   return User.findOne({
     email: { $regex: new RegExp(`^${escaped}$`, 'i') },
-  }).session(session || null);
+  });
 }
 
 async function getOrCreateSplitCategory(userId: string | Types.ObjectId, session?: mongoose.ClientSession) {
-  const category = await Category.findOne({ userId, name: 'Split' }).session(session || null);
+  const category = await Category.findOne({ userId, name: 'Split' });
   if (category) return category;
 
   return Category.create([{
@@ -191,11 +191,11 @@ export const splitService = {
       createdDocs.push({ model: Split, id: split._id });
 
       // Determine who paid
-      const payerSplitUser = await SplitUser.findById(input.paidBy).session(useTransaction ? dbSession : null);
+      const payerSplitUser = await SplitUser.findById(input.paidBy);
       if (!payerSplitUser) throw new SplitError('Payer not found.', 422);
 
       // 1. Create Payer Transaction (full Expense) if registered
-      const payerUser = await findUserByEmail(payerSplitUser.email, useTransaction ? dbSession : null);
+      const payerUser = await findUserByEmail(payerSplitUser.email);
       if (payerUser) {
         const cat = await getOrCreateSplitCategory(payerUser._id, useTransaction ? dbSession : undefined);
         const txRecordId = await generateRecordId('EXP');
@@ -225,10 +225,10 @@ export const splitService = {
       for (const m of members) {
         if (m.userId.toString() === input.paidBy) continue; // Payer doesn't owe
 
-        const subSplitUser = await SplitUser.findById(m.userId).session(useTransaction ? dbSession : null);
+        const subSplitUser = await SplitUser.findById(m.userId);
         if (!subSplitUser || !subSplitUser.email) continue;
 
-        const subUser = await findUserByEmail(subSplitUser.email, useTransaction ? dbSession : null);
+        const subUser = await findUserByEmail(subSplitUser.email);
         if (subUser && subUser._id.toString() !== userId) {
           notificationsToCreate.push({
             targetUserId: subUser._id.toString(),
@@ -370,11 +370,11 @@ export const splitService = {
       await existing.save(useTransaction ? { session: dbSession } : {});
 
       // Determine who paid
-      const payerSplitUser = await SplitUser.findById(merged.paidBy).session(useTransaction ? dbSession : null);
+      const payerSplitUser = await SplitUser.findById(merged.paidBy);
       if (!payerSplitUser) throw new SplitError('Payer not found.', 422);
 
       // Create payer transaction if registered
-      const payerUser = await findUserByEmail(payerSplitUser.email, useTransaction ? dbSession : null);
+      const payerUser = await findUserByEmail(payerSplitUser.email);
       if (payerUser) {
         const cat = await getOrCreateSplitCategory(payerUser._id, useTransaction ? dbSession : undefined);
         const txRecordId = await generateRecordId('EXP');
@@ -403,10 +403,10 @@ export const splitService = {
       for (const m of members) {
         if (m.userId.toString() === merged.paidBy) continue;
 
-        const subSplitUser = await SplitUser.findById(m.userId).session(useTransaction ? dbSession : null);
+        const subSplitUser = await SplitUser.findById(m.userId);
         if (!subSplitUser || !subSplitUser.email) continue;
 
-        const subUser = await findUserByEmail(subSplitUser.email, useTransaction ? dbSession : null);
+        const subUser = await findUserByEmail(subSplitUser.email);
         if (subUser) {
           notificationsToCreate.push({
             targetUserId: subUser._id.toString(),
@@ -550,15 +550,15 @@ export const splitService = {
       await split.save(useTransaction ? { session: dbSession } : {});
 
       // Get target user names
-      const payerSplitUser = await SplitUser.findById(payerId).session(useTransaction ? dbSession : null);
-      const targetSplitUser = await SplitUser.findById(memberId).session(useTransaction ? dbSession : null);
+      const payerSplitUser = await SplitUser.findById(payerId);
+      const targetSplitUser = await SplitUser.findById(memberId);
 
       const notificationsToCreate: { targetUserId: string; title: string; message: string; type: 'Split Created' | 'Split Paid' | 'Split Reminder'; relatedId: string }[] = [];
 
       if (payerSplitUser && targetSplitUser) {
-        const payerUser = await findUserByEmail(payerSplitUser.email, useTransaction ? dbSession : null);
-        const targetUser = await findUserByEmail(targetSplitUser.email, useTransaction ? dbSession : null);
-        const creatorUser = await User.findById(split.userId).session(useTransaction ? dbSession : null);
+        const payerUser = await findUserByEmail(payerSplitUser.email);
+        const targetUser = await findUserByEmail(targetSplitUser.email);
+        const creatorUser = await User.findById(split.userId);
 
         // Prepare Notification to Creator
         if (creatorUser) {
@@ -710,7 +710,7 @@ export const splitService = {
       const payerSplitUser = existing.paidBy as any;
       const payerEmail = payerSplitUser?.email?.toLowerCase();
       const payerUser = payerEmail
-        ? await User.findOne({ email: payerEmail }).session(useTransaction ? dbSession : null)
+        ? await User.findOne({ email: payerEmail })
         : null;
 
       // Settle any remaining unpaid member shares on closure
@@ -721,7 +721,7 @@ export const splitService = {
           const targetSplitUser = member.userId as any;
           const targetEmail = targetSplitUser?.email?.toLowerCase();
           const targetUser = targetEmail
-            ? await User.findOne({ email: targetEmail }).session(useTransaction ? dbSession : null)
+            ? await User.findOne({ email: targetEmail })
             : null;
 
           // A. Payer receives Income settlement for the pending share
