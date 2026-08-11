@@ -80,6 +80,15 @@ body {
   min-height: 100%;
 }
 
+/* ─── Smooth Theme Transitioning ────────────────────────────────────── */
+.theme-transitioning,
+.theme-transitioning *,
+.theme-transitioning *::before,
+.theme-transitioning *::after {
+  transition: background-color 0.25s ease-in-out, border-color 0.25s ease-in-out, color 0.25s ease-in-out, fill 0.25s ease-in-out, stroke 0.25s ease-in-out, box-shadow 0.25s ease-in-out !important;
+  transition-delay: 0s !important;
+}
+
 /* ─── Typography ────────────────────────────────────────────────────── */
 .font-display {
   font-family: var(--font-display);

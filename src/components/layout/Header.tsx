@@ -114,7 +114,7 @@ export function Header() {
                   transition={{ duration: 0.15 }}
                   className="flex items-center justify-center"
                 >
-                  {theme === 'dark' ? <FiSun size={16} /> : <FiMoon size={16} />}
+                  {theme === 'dark' ? <FiSun size={16} className="text-amber-400" /> : <FiMoon size={16} className="text-indigo-400" />}
                 </motion.span>
               </AnimatePresence>
             </button>

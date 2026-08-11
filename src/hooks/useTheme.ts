@@ -16,11 +16,9 @@ export function useTheme() {
 
   useEffect(() => {
     const stored = localStorage.getItem('et-theme') as 'light' | 'dark' | null;
-    if (stored) {
-      setTheme(stored);
-    } else {
-      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      setTheme(prefersDark ? 'dark' : 'light');
+    const targetTheme = stored ?? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    if (useUIStore.getState().theme !== targetTheme) {
+      setTheme(targetTheme);
     }
   }, [setTheme]);
 

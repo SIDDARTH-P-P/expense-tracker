@@ -44,8 +44,13 @@ export const useUIStore = create<UIState>((set, get) => ({
   setTheme: (theme) => {
     set({ theme });
     if (typeof document !== 'undefined') {
-      document.documentElement.classList.toggle('dark', theme === 'dark');
+      const root = document.documentElement;
+      root.classList.add('theme-transitioning');
+      root.classList.toggle('dark', theme === 'dark');
       localStorage.setItem('et-theme', theme);
+      setTimeout(() => {
+        root.classList.remove('theme-transitioning');
+      }, 300);
     }
   },
   toggleTheme: () => get().setTheme(get().theme === 'dark' ? 'light' : 'dark'),
