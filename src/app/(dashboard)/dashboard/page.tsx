@@ -35,7 +35,7 @@ export default function DashboardPage() {
   }, [dateFilterType, selectedMonth, selectedYear]);
 
   const { data: summary, isLoading, isError, refetch } = useDashboardSummary(dateParams.from, dateParams.to);
-  const currency = user?.currency ?? 'USD';
+  const currency = user?.currency ?? 'INR';
 
   if (isError) return <ErrorState onRetry={() => refetch()} />;
 
@@ -54,9 +54,9 @@ export default function DashboardPage() {
       <div className="sticky top-0 z-30 bg-background pt-3 pb-2 flex flex-col gap-4">
         {/* Hero balance card */}
         <BalanceCard
-          totalBalance={summary.totalBalance || 2548}
-          monthlyIncome={summary.monthlyIncome || 10840}
-          monthlyExpense={summary.monthlyExpense || 1884}
+          totalBalance={summary.totalBalance ?? 0}
+          monthlyIncome={summary.monthlyIncome ?? 0}
+          monthlyExpense={summary.monthlyExpense ?? 0}
           incomeChangePct={summary.incomeChangePct}
           expenseChangePct={summary.expenseChangePct}
           monthlyTrend={summary.monthlyTrend}

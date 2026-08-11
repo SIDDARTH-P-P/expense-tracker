@@ -15,7 +15,7 @@ export interface ISettings extends Document {
 const SettingsSchema = new Schema<ISettings>(
   {
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
-    currency: { type: String, default: 'USD' },
+    currency: { type: String, default: 'INR' },
     theme: { type: String, enum: ['light', 'dark', 'system'], default: 'dark' },
     language: { type: String, default: 'en' },
     notifications: {

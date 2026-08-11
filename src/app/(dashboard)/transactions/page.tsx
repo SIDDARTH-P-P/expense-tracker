@@ -289,16 +289,16 @@ export default function TransactionsPage() {
             <div className="grid grid-cols-3 gap-1 text-center divide-x divide-border/60">
               <div className="px-1">
                 <span className="text-[9px] font-extrabold uppercase tracking-wider text-income block">CREDIT (IN)</span>
-                <p className="text-xs font-extrabold text-income mt-0.5">{formatCurrency(bookIncome, user?.currency ?? 'USD')}</p>
+                <p className="text-xs font-extrabold text-income mt-0.5">{formatCurrency(bookIncome, user?.currency ?? 'INR')}</p>
               </div>
               <div className="px-1">
                 <span className="text-[9px] font-extrabold uppercase tracking-wider text-expense block">DEBIT (OUT)</span>
-                <p className="text-xs font-extrabold text-expense mt-0.5">{formatCurrency(bookExpense, user?.currency ?? 'USD')}</p>
+                <p className="text-xs font-extrabold text-expense mt-0.5">{formatCurrency(bookExpense, user?.currency ?? 'INR')}</p>
               </div>
               <div className="px-1">
                 <span className="text-[9px] font-extrabold uppercase tracking-wider text-muted block">NET</span>
                 <p className={cn("text-xs font-extrabold mt-0.5", bookNet >= 0 ? "text-income" : "text-expense")}>
-                  {bookNet >= 0 ? '+' : '-'}{formatCurrency(Math.abs(bookNet), user?.currency ?? 'USD')}
+                  {bookNet >= 0 ? '+' : '-'}{formatCurrency(Math.abs(bookNet), user?.currency ?? 'INR')}
                 </p>
               </div>
             </div>
@@ -315,7 +315,7 @@ export default function TransactionsPage() {
                 ? (infiniteData?.pages.flatMap((p) => p.items) ?? [])
                 : allFilteredItems
             }
-            currency={user?.currency ?? 'USD'}
+            currency={user?.currency ?? 'INR'}
             selectedNotebookId={selectedNotebookId}
             onSelectNotebook={setSelectedNotebookId}
             isLoading={isBookOpen ? listLoading : cashbookLoading}
@@ -326,7 +326,7 @@ export default function TransactionsPage() {
         ) : (
           <TransactionList
             data={infiniteData}
-            currency={user?.currency ?? 'USD'}
+            currency={user?.currency ?? 'INR'}
             isLoading={listLoading}
             isError={listError}
             isFetchingNextPage={isFetchingNextPage}

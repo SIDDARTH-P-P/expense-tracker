@@ -42,4 +42,18 @@ export const authService = {
     await user.save();
     return user;
   },
+
+  async googleLogin(email: string, name?: string) {
+    let user = await userRepository.findByEmail(email);
+    if (!user) {
+      const randomPassword = await hashPassword(Math.random().toString(36).substring(2) + Date.now().toString());
+      user = await userRepository.create({
+        name: name || email.split('@')[0],
+        email,
+        password: randomPassword,
+      });
+      await categoryService.ensureDefaultCategories(user._id);
+    }
+    return user;
+  },
 };

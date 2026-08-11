@@ -93,7 +93,7 @@ export function Header() {
             >
               <span className="text-xs text-muted font-medium">Balance</span>
               <span className={`font-display text-sm font-bold ${summary.totalBalance >= 0 ? 'text-income' : 'text-expense'}`}>
-                <AnimatedNumber value={summary.totalBalance} currency={user?.currency ?? 'USD'} />
+                <AnimatedNumber value={summary.totalBalance} currency={user?.currency ?? 'INR'} />
               </span>
             </motion.div>
           )}
@@ -163,7 +163,7 @@ export function Header() {
               <span className="text-xs text-muted">Net balance</span>
             </div>
             <span className={`font-display text-sm font-bold ${summary.totalBalance >= 0 ? 'text-income' : 'text-expense'}`}>
-              <AnimatedNumber value={summary.totalBalance} currency={user?.currency ?? 'USD'} />
+              <AnimatedNumber value={summary.totalBalance} currency={user?.currency ?? 'INR'} />
             </span>
           </div>
         )}

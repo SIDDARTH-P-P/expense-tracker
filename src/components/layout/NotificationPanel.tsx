@@ -58,7 +58,7 @@ function getNotificationColor(type: Notification['type']) {
     case 'Income':
       return 'bg-income/10 text-income';
     case 'System':
-      return 'bg-blue-500/10 text-blue-500';
+      return 'bg-primary/10 text-primary';
     default:
       return 'bg-muted/10 text-muted';
   }

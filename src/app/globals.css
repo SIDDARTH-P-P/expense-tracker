@@ -15,13 +15,13 @@
   --muted: 215 18% 48%;
   --border: 214 22% 88%;
 
-  --primary: 172 66% 38%;
+  --primary: 168 85% 36%;
   --primary-foreground: 0 0% 100%;
 
-  --income: 152 58% 36%;
+  --income: 152 68% 38%;
   --income-foreground: 0 0% 100%;
 
-  --expense: 350 76% 54%;
+  --expense: 350 84% 56%;
   --expense-foreground: 0 0% 100%;
 
   --warning: 38 92% 50%;
@@ -29,7 +29,7 @@
   /* Shadows */
   --shadow-soft: 0 2px 16px 0 hsl(222 30% 10% / 0.07);
   --shadow-card: 0 4px 24px 0 hsl(222 30% 10% / 0.09);
-  --shadow-glow: 0 0 0 1px hsl(var(--primary) / 0.2), 0 8px 32px hsl(var(--primary) / 0.25);
+  --shadow-glow: 0 0 0 1px hsl(var(--primary) / 0.25), 0 8px 32px hsl(var(--primary) / 0.28);
   --shadow-float: 0 8px 40px hsl(222 30% 10% / 0.16);
 }
 
@@ -41,20 +41,20 @@
   --muted: 215 18% 62%;
   --border: 222 22% 18%;
 
-  --primary: 172 70% 48%;
+  --primary: 168 85% 46%;
   --primary-foreground: 222 32% 7%;
 
-  --income: 152 65% 48%;
+  --income: 152 70% 48%;
   --income-foreground: 222 32% 7%;
 
-  --expense: 350 80% 63%;
+  --expense: 350 88% 63%;
   --expense-foreground: 222 32% 7%;
 
   --warning: 38 92% 58%;
 
   --shadow-soft: 0 2px 16px 0 hsl(0 0% 0% / 0.25);
   --shadow-card: 0 4px 24px 0 hsl(0 0% 0% / 0.32);
-  --shadow-glow: 0 0 0 1px hsl(var(--primary) / 0.25), 0 8px 32px hsl(var(--primary) / 0.3);
+  --shadow-glow: 0 0 0 1px hsl(var(--primary) / 0.3), 0 8px 32px hsl(var(--primary) / 0.35);
   --shadow-float: 0 8px 40px hsl(0 0% 0% / 0.4);
 }
 
