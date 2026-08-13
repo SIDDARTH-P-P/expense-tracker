@@ -13,6 +13,8 @@ import { useUIStore } from '@/store/ui.store';
 import { useCreateTransaction } from '@/hooks/useTransactions';
 import { FiArrowLeft } from 'react-icons/fi';
 
+import { usePathname } from 'next/navigation';
+
 /**
  * AppShell — mobile-first layout.
  *
@@ -22,6 +24,9 @@ import { FiArrowLeft } from 'react-icons/fi';
  * The outer div is h-screen/overflow-hidden so only <main> scrolls.
  */
 export function AppShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const isProfilePage = pathname === '/profile';
+
   const isAddSheetOpen = useUIStore((s) => s.isAddSheetOpen);
   const closeAddSheet = useUIStore((s) => s.closeAddSheet);
   const addSheetKind = useUIStore((s) => s.addSheetKind);
@@ -44,12 +49,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
       {/* Main column */}
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <Header />
+        {!isProfilePage && <Header />}
 
         {/* Only this scrolls */}
         <main
           id="main-content"
-          className="flex-1 overflow-y-auto overscroll-contain px-4 pb-20 sm:px-6 sm:pb-10 lg:px-8"
+          className={
+            isProfilePage
+              ? 'flex-1 overflow-y-auto overscroll-contain pb-0'
+              : 'flex-1 overflow-y-auto overscroll-contain px-4 pb-20 sm:px-6 sm:pb-10 lg:px-8'
+          }
         >
           {children}
         </main>

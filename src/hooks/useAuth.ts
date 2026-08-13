@@ -69,6 +69,23 @@ export function useSignup() {
   });
 }
 
+export function useUpdateProfile() {
+  const qc = useQueryClient();
+  const setUser = useAuthStore((s) => s.setUser);
+
+  return useMutation({
+    mutationFn: (input: Partial<User>) => apiClient.patch<User>('/auth/me', input),
+    onSuccess: (updatedUser) => {
+      setUser(updatedUser);
+      qc.setQueryData(['auth', 'me'], updatedUser);
+      toast.success('Profile updated successfully.');
+    },
+    onError: (err: ApiClientError) => {
+      toast.error(err.message || 'Failed to update profile.');
+    },
+  });
+}
+
 export function useLogout() {
   const router = useRouter();
   const setUser = useAuthStore((s) => s.setUser);

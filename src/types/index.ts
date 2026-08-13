@@ -5,7 +5,11 @@ export interface User {
   id: string;
   name: string;
   email: string;
+  username?: string;
+  memberId?: string;
   avatar?: string;
+  phone?: string;
+  address?: string;
   currency: string;
   theme: 'light' | 'dark';
   language: string;
