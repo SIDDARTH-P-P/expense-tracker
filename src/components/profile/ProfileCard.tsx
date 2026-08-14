@@ -26,8 +26,11 @@ import {
   FiClock,
   FiRefreshCw,
   FiLogOut,
+  FiBell,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
+import { useNotifications } from '@/hooks/useNotifications';
+import { NotificationPanel } from '@/components/layout/NotificationPanel';
 import {
   useCurrentUser,
   useUpdateProfile,
@@ -152,8 +155,18 @@ export function ProfileCard() {
   const revokeSession = useRevokeSession();
   const revokeAllSessions = useRevokeAllSessions();
 
+  const {
+    notifications,
+    unreadCount,
+    isLoading: notifLoading,
+    markRead,
+    markAllRead,
+    isMarkingAllRead,
+  } = useNotifications();
+
   const [expandedSection, setExpandedSection] = useState<string | null>(null);
   const [showRevokeAllConfirm, setShowRevokeAllConfirm] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   // Edit mode state for Personal Information
   const [isEditingPersonal, setIsEditingPersonal] = useState(false);
@@ -321,7 +334,8 @@ export function ProfileCard() {
     <div className="mx-auto w-full max-w-lg bg-surface flex flex-col h-full">
       {/* ── Avatar & Identity ── sticky header */}
       <div className="sticky top-0 z-10 bg-surface border-b border-border/40">
-      <div className="flex items-center gap-4 px-6 pt-8 pb-6">
+        <div className="flex items-start justify-between gap-4 px-6 pt-8 pb-6">
+          <div className="flex items-center gap-4 min-w-0 flex-1">
         {/* Avatar */}
         <div ref={avatarMenuRef} className="relative shrink-0 h-20 w-20">
           <div className="h-full w-full overflow-hidden rounded-full border-2 border-border shadow-sm">
@@ -412,6 +426,28 @@ export function ProfileCard() {
             </div>
           </div>
         </div>
+        </div>
+
+        {/* Notification Bell Button */}
+        <button
+          type="button"
+          onClick={() => setShowNotifications(true)}
+          aria-label="Notifications"
+          className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-border bg-surface text-foreground shadow-sm transition-all hover:border-primary/40 hover:bg-primary/5 hover:scale-105 active:scale-95 mt-1"
+        >
+          <FiBell size={18} />
+          {unreadCount > 0 && (
+            <motion.span
+              key={unreadCount}
+              initial={{ scale: 0.5, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 25 }}
+              className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-expense px-1 text-[9px] font-bold text-white ring-2 ring-background"
+            >
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </motion.span>
+          )}
+        </button>
       </div>
       </div>
 
@@ -935,6 +971,18 @@ export function ProfileCard() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Notification Panel */}
+      <NotificationPanel
+        isOpen={showNotifications}
+        onClose={() => setShowNotifications(false)}
+        notifications={notifications}
+        unreadCount={unreadCount}
+        isLoading={notifLoading}
+        onMarkRead={markRead}
+        onMarkAllRead={markAllRead}
+        isMarkingAllRead={isMarkingAllRead}
+      />
     </div>
   );
 }

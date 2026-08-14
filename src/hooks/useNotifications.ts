@@ -227,8 +227,9 @@ export function useNotifications() {
           // 3. Play notification sound
           playNotificationSound();
 
-          // 4. Show in-app toast notification
+          // 4. Show in-app toast notification with unique ID deduplication
           toast(notification.title, {
+            id: `notif-${notification.id}`,
             icon: '🔔',
             duration: 4000,
             style: {
