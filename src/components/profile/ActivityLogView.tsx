@@ -175,8 +175,8 @@ export function ActivityLogView({ hideHeader = false }: ActivityLogViewProps) {
 
   return (
     <div className={cn("mx-auto w-full max-w-4xl relative", !hideHeader && "px-3 sm:px-6")}>
-      {/* ── STICKY TOP HEADER + SEARCH BAR (Zero-Jump Pinned Header) ── */}
-      <div className="sticky top-0 z-20 -mx-3 sm:-mx-6 border-b border-border bg-background px-3 pt-3 pb-3 sm:px-6 mb-4 shadow-xs">
+      {/* ── TOP HEADER + SEARCH BAR ── */}
+      <div className={cn("mb-4", !hideHeader ? "sticky top-0 z-20 -mx-3 sm:-mx-6 border-b border-border bg-background px-3 pt-3 pb-3 sm:px-6 shadow-xs" : "pt-1 pb-1")}>
         {!hideHeader && (
           <div className="flex items-center justify-between gap-4 mb-3">
             <div className="flex items-center gap-3">
