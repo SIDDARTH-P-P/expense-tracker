@@ -171,8 +171,7 @@ export function useNotifications() {
     queryKey: notificationsQueryKey(userId),
     queryFn: () => apiClient.get<Notification[]>('/notifications'),
     enabled: !!userId,
-    staleTime: 10 * 1000,
-    refetchInterval: 15 * 1000, // Background sync fallback every 15s so page refresh is never needed!
+    staleTime: 5 * 60 * 1000,
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
   });

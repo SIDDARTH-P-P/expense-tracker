@@ -163,13 +163,11 @@ export function useRevokeAllSessions() {
 
 // ─── Session Heartbeat ────────────────────────────────────────────────────────
 /**
- * Polls /api/auth/sessions/check every 45 seconds.
- * If the session has been revoked from another device, the server returns 401
- * which triggers api-client to show "Session expired" toast + redirect to login.
+ * Perform a single check on mount.
+ * Continuous polling is disabled — session revocation events are handled
+ * in real-time via Server-Sent Events (SSE) stream in useNotifications.
  */
 export function useSessionHeartbeat() {
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
   useEffect(() => {
     const check = async () => {
       try {
@@ -179,14 +177,8 @@ export function useSessionHeartbeat() {
       }
     };
 
-    // Run check immediately on mount
+    // Run single initial check on mount
     check();
-
-    // High-frequency polling every 4 seconds for realtime revocation
-    intervalRef.current = setInterval(check, 4_000);
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
   }, []);
 }
 
