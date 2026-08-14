@@ -3,6 +3,7 @@ import { withAuth } from '@/middlewares/with-auth';
 import { authService, AuthError } from '@/services/auth.service';
 import { changePasswordSchema } from '@/lib/validations/auth.schema';
 import { apiSuccess, apiError } from '@/lib/utils/api-response';
+import { auditService } from '@/services/audit.service';
 
 export const POST = withAuth(async (req: NextRequest, user) => {
   try {
@@ -11,6 +12,7 @@ export const POST = withAuth(async (req: NextRequest, user) => {
     if (!parsed.success) return apiError('Please check the form for errors.', 422, parsed.error.flatten().fieldErrors);
 
     await authService.changePassword(user.userId, parsed.data.currentPassword, parsed.data.newPassword);
+    await auditService.logPasswordChange(user.userId, req);
     return apiSuccess({ updated: true });
   } catch (err) {
     if (err instanceof AuthError) return apiError(err.message, err.status);

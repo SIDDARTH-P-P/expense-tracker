@@ -69,20 +69,20 @@ export function TransactionList({
   // IntersectionObserver for infinite scroll
   const observerCallback = useCallback(
     (entries: IntersectionObserverEntry[]) => {
-      if (entries[0]?.isIntersecting && hasNextPage && !isFetchingNextPage) {
+      if (entries[0]?.isIntersecting && hasNextPage && !isLoading && !isFetchingNextPage) {
         onFetchNextPage();
       }
     },
-    [hasNextPage, isFetchingNextPage, onFetchNextPage]
+    [hasNextPage, isLoading, isFetchingNextPage, onFetchNextPage]
   );
 
   useEffect(() => {
     const el = sentinelRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(observerCallback, { rootMargin: '200px' });
+    if (!el || isLoading) return;
+    const observer = new IntersectionObserver(observerCallback, { rootMargin: '0px' });
     observer.observe(el);
     return () => observer.disconnect();
-  }, [observerCallback]);
+  }, [observerCallback, isLoading]);
 
   // Flatten pages into one array
   const allItems = useMemo(

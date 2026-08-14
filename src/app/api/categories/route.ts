@@ -22,6 +22,14 @@ export const POST = withAuth(async (req, user) => {
     if (!parsed.success) return apiError('Please check the form for errors.', 422, parsed.error.flatten().fieldErrors);
 
     const created = await categoryService.create(user.userId, parsed.data);
+
+    try {
+      const { auditService } = await import('@/services/audit.service');
+      await auditService.logCategory(user.userId, 'CATEGORY_CREATE', created, [], req);
+    } catch {
+      // Best effort
+    }
+
     return apiSuccess(normalizeCategoryRecord(created), 201);
   } catch (err) {
     if (err instanceof CategoryError) return apiError(err.message, err.status);

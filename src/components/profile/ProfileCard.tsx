@@ -728,6 +728,13 @@ export function ProfileCard() {
           </div>
         </AccordionItem>
 
+        {/* 4. Activity Log */}
+        <LinkItem
+          icon={<FiClock size={20} />}
+          label="Activity log"
+          onClick={() => router.push('/activity-log')}
+        />
+
         {/* 4. Customer Support */}
         <AccordionItem id="support" icon={<FiHeadphones size={20} />} label="Customer Support" expandedSection={expandedSection} onToggle={toggleSection}>
           <div className="rounded-2xl bg-surface-2 dark:bg-surface-2 p-4 space-y-2.5 text-xs text-foreground">

@@ -98,6 +98,13 @@ export async function POST(req: NextRequest) {
       expiresAt,
     });
 
+    try {
+      const { auditService } = await import('@/services/audit.service');
+      await auditService.logLogin(userId, req, { location });
+    } catch {
+      // Audit log is best-effort
+    }
+
     // ── Send system notification & SSE alert to existing logged in sessions ──
     if (existingSessionCount > 0) {
       try {

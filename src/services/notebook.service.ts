@@ -76,7 +76,33 @@ export const notebookService = {
     return existing;
   },
 
+  async ensureActivityLogNotebook(userId: string) {
+    const userObjId = new Types.ObjectId(userId);
+    let existing = await Notebook.findOne({
+      userId: userObjId,
+      name: 'Activity Log',
+    });
+    if (!existing) {
+      try {
+        existing = await Notebook.create({
+          recordId: await generateRecordId('NBK'),
+          userId: userObjId,
+          name: 'Activity Log',
+          isAutoMonthly: false,
+          color: '#A855F7',
+          icon: 'FiClock',
+        });
+      } catch (err: any) {
+        if (err?.code === 11000) {
+          existing = await Notebook.findOne({ userId: userObjId, name: 'Activity Log' });
+        }
+      }
+    }
+    return existing;
+  },
+
   async list(userId: string) {
+    await this.ensureActivityLogNotebook(userId);
     return Notebook.find({ userId: new Types.ObjectId(userId) }).sort({ isPinned: -1, isStarred: -1, createdAt: -1 });
   },
 

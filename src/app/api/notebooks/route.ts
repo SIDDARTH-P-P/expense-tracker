@@ -81,6 +81,14 @@ export const POST = withAuth(async (req, user) => {
     }
 
     const created = await notebookService.create(user.userId, name);
+
+    try {
+      const { auditService } = await import('@/services/audit.service');
+      await auditService.logNotebook(user.userId, 'NOTEBOOK_CREATE', created, [], req);
+    } catch {
+      // Best effort
+    }
+
     return apiSuccess({
       id: created._id.toString(),
       recordId: created.recordId,

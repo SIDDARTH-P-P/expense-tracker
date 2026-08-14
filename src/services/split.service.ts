@@ -257,7 +257,8 @@ export const splitService = {
       await Audit.create([{
         userId: new Types.ObjectId(userId),
         action: 'Split Created',
-        details: { splitId: split._id, splitRecordId, title: input.title, amount: input.amount },
+        category: 'SPLIT',
+        details: { title: `Created Split "${input.title}"`, splitId: split._id, splitRecordId, amount: input.amount },
       }], useTransaction ? { session: dbSession } : {});
 
       if (useTransaction) {
@@ -435,7 +436,8 @@ export const splitService = {
       await Audit.create([{
         userId: new Types.ObjectId(userId),
         action: 'Split Updated',
-        details: { splitId: existing._id, title: merged.title, amount: merged.amount },
+        category: 'SPLIT',
+        details: { title: `Updated Split "${merged.title}"`, splitId: existing._id, amount: merged.amount },
       }], useTransaction ? { session: dbSession } : {});
 
       if (useTransaction) {
@@ -667,7 +669,8 @@ export const splitService = {
       await Audit.create([{
         userId: new Types.ObjectId(userId),
         action: 'Marked Paid',
-        details: { splitId: split._id, memberId, amount: member.shareAmount },
+        category: 'SPLIT',
+        details: { title: `Settled Split Payment`, splitId: split._id, memberId, amount: member.shareAmount },
       }], useTransaction ? { session: dbSession } : {});
 
       if (useTransaction) {
@@ -796,7 +799,8 @@ export const splitService = {
       await Audit.create([{
         userId: new Types.ObjectId(userId),
         action: 'Split Closed',
-        details: { splitId: existing._id, recordId: existing.recordId, reason },
+        category: 'SPLIT',
+        details: { title: `Closed Split Expense`, splitId: existing._id, recordId: existing.recordId, reason },
       }], useTransaction ? { session: dbSession } : {});
 
       if (useTransaction) {

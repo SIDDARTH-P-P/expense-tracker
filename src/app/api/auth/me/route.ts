@@ -2,6 +2,7 @@ import { getCurrentUser } from '@/lib/auth';
 import { userRepository } from '@/repositories/user.repository';
 import { profileRepository } from '@/repositories/profile.repository';
 import { apiSuccess, apiError } from '@/lib/utils/api-response';
+import { auditService, AuditChangeItem } from '@/services/audit.service';
 
 export async function GET() {
   const session = await getCurrentUser();
@@ -45,11 +46,42 @@ export async function PATCH(req: Request) {
       }
     }
 
-    // Ensures Profile collection document exists and updates it
-    await profileRepository.getOrCreateProfile(session.userId);
-    const updatedProfile = await profileRepository.updateByUserId(session.userId, updateData);
+    // Fetch previous profile before updating
+    const existingProfile = await profileRepository.getOrCreateProfile(session.userId);
 
+    const labels: Record<string, string> = {
+      name: 'Full Name',
+      email: 'Email',
+      username: 'Username',
+      phone: 'Phone Number',
+      address: 'Address',
+      avatar: 'Profile Picture',
+      language: 'Language',
+    };
+
+    const changes: AuditChangeItem[] = [];
+    const existingProfileObj = existingProfile ? existingProfile.toObject() : {};
+    for (const key of allowedUpdates) {
+      const prevVal = (existingProfileObj as any)[key];
+      if (updateData[key] !== undefined && updateData[key] !== prevVal) {
+        const oldVal = key === 'avatar' ? (prevVal ? 'Photo set' : 'None') : (prevVal || 'None');
+        const newVal = key === 'avatar' ? (updateData[key] ? 'Photo updated' : 'Removed') : (updateData[key] || 'None');
+        changes.push({
+          field: key,
+          label: labels[key] || key,
+          oldValue: oldVal,
+          newValue: newVal,
+        });
+      }
+    }
+
+    const updatedProfile = await profileRepository.updateByUserId(session.userId, updateData);
     const user = await userRepository.findById(session.userId);
+
+    // Record audit log entry
+    if (changes.length > 0) {
+      await auditService.logProfileUpdate(session.userId, changes, req);
+    }
 
     return apiSuccess({
       id: String(session.userId),

@@ -1,10 +1,11 @@
 'use client';
 
-import { FiMoon, FiSun, FiDollarSign, FiGlobe, FiLogOut, FiTrash2 } from 'react-icons/fi';
+import { FiMoon, FiSun, FiDollarSign, FiGlobe, FiLogOut, FiTrash2, FiClock } from 'react-icons/fi';
 import { useState } from 'react';
 import { useTheme } from '@/hooks/useTheme';
 import { useCurrentUser, useLogout } from '@/hooks/useAuth';
 import { useQueryClient } from '@tanstack/react-query';
+import { useRouter } from 'next/navigation';
 import { Select } from '@/components/common/Select';
 import { ConfirmDialog } from '@/components/common/ConfirmDialog';
 import { CURRENCIES } from '@/constants/currencies';
@@ -33,6 +34,7 @@ function SettingsRow({ icon: Icon, label, children }: { icon: React.ElementType;
 }
 
 export function SettingsList() {
+  const router = useRouter();
   const { theme, toggleTheme } = useTheme();
   const { data: user } = useCurrentUser();
   const logout = useLogout();
@@ -85,6 +87,12 @@ export function SettingsList() {
             </option>
           ))}
         </Select>
+      </SettingsRow>
+
+      <SettingsRow icon={FiClock} label="Activity log">
+        <button onClick={() => router.push('/activity-log')} className="text-xs font-medium text-primary">
+          View log
+        </button>
       </SettingsRow>
 
       <SettingsRow icon={FiLogOut} label="Log out">
