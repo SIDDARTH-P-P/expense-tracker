@@ -279,6 +279,15 @@ export function useNotifications() {
         }
       });
 
+      es.addEventListener('session_revoked', async () => {
+        try {
+          // Instantly verify if this client's session was revoked
+          await apiClient.get('/auth/sessions/check');
+        } catch {
+          // If revoked, apiClient 401 handler shows toast + redirects to /login
+        }
+      });
+
       es.addEventListener('open', () => {
         retryCount = 0; // reset retries on successful connect
       });

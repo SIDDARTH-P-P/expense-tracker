@@ -1,6 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { apiClient, ApiClientError } from '@/services/api-client';
@@ -111,4 +112,141 @@ export function useLogout() {
       window.location.replace('/login');
     },
   });
+}
+
+// ─── Session Management ───────────────────────────────────────────────────────
+
+export interface SessionInfo {
+  id: string;
+  sessionId: string;
+  deviceName: string;
+  os: string;
+  browser: string;
+  ip: string;
+  location: string;
+  loginAt: string;
+  lastSeenAt: string;
+  isCurrent: boolean;
+}
+
+export function useSessions() {
+  return useQuery<SessionInfo[]>({
+    queryKey: ['auth', 'sessions'],
+    queryFn: () => apiClient.get<SessionInfo[]>('/auth/sessions'),
+    staleTime: 30 * 1000,
+  });
+}
+
+export function useRevokeSession() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (sessionId: string) => apiClient.delete(`/auth/sessions/${sessionId}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['auth', 'sessions'] });
+      toast.success('Session revoked.');
+    },
+    onError: (err: ApiClientError) => toast.error(err.message || 'Failed to revoke session.'),
+  });
+}
+
+export function useRevokeAllSessions() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => apiClient.delete('/auth/sessions'),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['auth', 'sessions'] });
+      toast.success('All other sessions signed out.');
+    },
+    onError: (err: ApiClientError) => toast.error(err.message || 'Failed to revoke sessions.'),
+  });
+}
+
+// ─── Session Heartbeat ────────────────────────────────────────────────────────
+/**
+ * Polls /api/auth/sessions/check every 45 seconds.
+ * If the session has been revoked from another device, the server returns 401
+ * which triggers api-client to show "Session expired" toast + redirect to login.
+ */
+export function useSessionHeartbeat() {
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  useEffect(() => {
+    const check = async () => {
+      try {
+        await apiClient.get('/auth/sessions/check');
+      } catch {
+        // api-client handles 401 → shows toast + redirects automatically
+      }
+    };
+
+    // Run check immediately on mount
+    check();
+
+    // High-frequency polling every 4 seconds for realtime revocation
+    intervalRef.current = setInterval(check, 4_000);
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, []);
+}
+
+// ─── Login Alert SSE Listener ─────────────────────────────────────────────────
+/**
+ * Listens on the existing SSE stream for `login_alert` events.
+ * When a new device logs into the same account, shows an alert toast.
+ */
+export function useLoginAlertListener() {
+  const shownAlerts = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    const es = new EventSource('/api/notifications/sse', { withCredentials: true });
+
+    const handler = (event: MessageEvent) => {
+      try {
+        const data = JSON.parse(event.data) as {
+          deviceName: string;
+          os: string;
+          browser: string;
+          ip: string;
+          location: string;
+          loginAt: string;
+        };
+
+        // Dedupe by loginAt timestamp
+        const key = data.loginAt;
+        if (shownAlerts.current.has(key)) return;
+        shownAlerts.current.add(key);
+
+        const locationStr =
+          data.location && data.location !== 'Unknown location' && data.location !== 'Local network'
+            ? ` from ${data.location}`
+            : '';
+        const ipStr = data.ip && data.ip !== '::1' ? ` (${data.ip})` : '';
+
+        toast(
+          `🔔 New login on ${data.browser}${locationStr}${ipStr}`,
+          {
+            duration: 8000,
+            id: `login-alert-${key}`,
+            style: {
+              background: 'var(--color-surface)',
+              color: 'var(--color-foreground)',
+              border: '1px solid var(--color-border)',
+              fontSize: '13px',
+            },
+            icon: '⚠️',
+          }
+        );
+      } catch {
+        // ignore malformed events
+      }
+    };
+
+    es.addEventListener('login_alert', handler);
+
+    return () => {
+      es.removeEventListener('login_alert', handler);
+      es.close();
+    };
+  }, []);
 }

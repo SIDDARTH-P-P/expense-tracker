@@ -2,6 +2,7 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { cookies } from 'next/headers';
 import type { NextRequest } from 'next/server';
+import { randomUUID } from 'crypto';
 
 const JWT_SECRET = process.env.JWT_SECRET as string;
 const ACCESS_TOKEN_EXPIRY = '24h';
@@ -97,3 +98,34 @@ export async function getCurrentUser(req?: NextRequest): Promise<JwtPayload | nu
 }
 
 export { ACCESS_COOKIE, REFRESH_COOKIE };
+
+// ─── Session Cookie ──────────────────────────────────────────────────────────
+export const SESSION_COOKIE = 'et_session_id';
+
+export function generateSessionId(): string {
+  return randomUUID();
+}
+
+export async function setSessionCookie(sessionId: string, rememberMe = false) {
+  const cookieStore = await cookies();
+  cookieStore.set(SESSION_COOKIE, sessionId, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: rememberMe ? 60 * 60 * 24 * 30 : 60 * 60 * 24,
+  });
+}
+
+export async function clearSessionCookie() {
+  const cookieStore = await cookies();
+  cookieStore.set(SESSION_COOKIE, '', { path: '/', maxAge: 0 });
+}
+
+export async function getSessionId(req?: NextRequest): Promise<string | null> {
+  if (req) {
+    return req.cookies.get(SESSION_COOKIE)?.value ?? null;
+  }
+  const cookieStore = await cookies();
+  return cookieStore.get(SESSION_COOKIE)?.value ?? null;
+}

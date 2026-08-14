@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { QueryProvider } from '@/components/providers/QueryProvider';
 import { ToastProvider } from '@/components/providers/ToastProvider';
 import { ThemeInitializer } from '@/components/providers/ThemeInitializer';
+import { SessionInitializer } from '@/components/providers/SessionInitializer';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -58,6 +59,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="font-body antialiased">
         <QueryProvider>
           <ThemeInitializer />
+          <SessionInitializer />
           {children}
           <ToastProvider />
         </QueryProvider>

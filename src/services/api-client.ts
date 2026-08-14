@@ -9,6 +9,32 @@ export class ApiClientError extends Error {
   }
 }
 
+let _isRedirectingToLogin = false;
+
+function handleSessionExpired() {
+  if (_isRedirectingToLogin) return;
+
+  if (typeof window === 'undefined') return;
+
+  const currentPath = window.location.pathname;
+  if (currentPath.startsWith('/login')) return;
+
+  _isRedirectingToLogin = true;
+
+  import('react-hot-toast')
+    .then(({ default: toast }) => {
+      toast.error('Session expired. Please log in again.', {
+        duration: 3000,
+        id: 'session-expired',
+      });
+    })
+    .catch(() => {});
+
+  setTimeout(() => {
+    window.location.href = `/login?redirect=${encodeURIComponent(currentPath)}&reason=session_expired`;
+  }, 400);
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const res = await fetch(`/api${path}`, {
     ...options,
@@ -18,14 +44,10 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   const json = await res.json().catch(() => ({}));
 
-  // Session expired or unauthorized → redirect to login (unless user is intentionally logging out)
+  // Session expired or unauthorized → show toast & redirect immediately
   if (res.status === 401 || res.status === 403) {
     if (typeof window !== 'undefined' && !(window as unknown as Record<string, unknown>).__IS_LOGGING_OUT) {
-      const currentPath = window.location.pathname;
-      // Avoid redirect loop on the login page itself
-      if (!currentPath.startsWith('/login')) {
-        window.location.replace(`/login?redirect=${encodeURIComponent(currentPath)}&reason=session_expired`);
-      }
+      handleSessionExpired();
     }
   }
 

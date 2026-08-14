@@ -134,6 +134,20 @@ export const notificationService = {
     if (clients.size === 0) sseClients.delete(key);
   },
 
+  broadcastSessionRevoked(userId: string, payload: { revokedSessionId?: string; revokeAllOthers?: boolean; currentSessionId?: string }) {
+    const key = String(userId);
+    const clients = sseClients.get(key);
+    if (!clients || clients.size === 0) return;
+
+    const dead: SSEController[] = [];
+    clients.forEach((controller) => {
+      const sent = sendSSEMessage(controller, 'session_revoked', payload);
+      if (!sent) dead.push(controller);
+    });
+    dead.forEach((c) => clients.delete(c));
+    if (clients.size === 0) sseClients.delete(key);
+  },
+
   registerClient(userId: string, controller: SSEController) {
     const key = String(userId);
     if (!sseClients.has(key)) {
