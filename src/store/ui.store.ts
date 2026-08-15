@@ -35,7 +35,7 @@ interface UIState {
 let transitionTimer: ReturnType<typeof setTimeout> | null = null;
 
 export const useUIStore = create<UIState>((set, get) => ({
-  theme: 'dark',
+  theme: typeof window !== 'undefined' && localStorage.getItem('et-theme') ? (localStorage.getItem('et-theme') as 'light' | 'dark') : 'dark',
   isAddSheetOpen: false,
   addSheetKind: 'transaction',
   addSheetDefaultType: 'expense',
@@ -46,15 +46,9 @@ export const useUIStore = create<UIState>((set, get) => ({
   customStartDate: null,
   customEndDate: null,
   splitFilterMode: 'all',
-  isLiveChatOpen: typeof window !== 'undefined' ? localStorage.getItem('et_chat_open') === 'true' : false,
-  openLiveChat: () => {
-    if (typeof window !== 'undefined') localStorage.setItem('et_chat_open', 'true');
-    set({ isLiveChatOpen: true });
-  },
-  closeLiveChat: () => {
-    if (typeof window !== 'undefined') localStorage.setItem('et_chat_open', 'false');
-    set({ isLiveChatOpen: false });
-  },
+  isLiveChatOpen: false,
+  openLiveChat: () => set({ isLiveChatOpen: true }),
+  closeLiveChat: () => set({ isLiveChatOpen: false }),
   setTheme: (theme) => {
     set({ theme });
     if (typeof document !== 'undefined') {

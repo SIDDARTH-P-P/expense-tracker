@@ -30,6 +30,7 @@ import { usePathname } from 'next/navigation';
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isProfilePage = pathname === '/profile';
+  const isChatPage = pathname === '/chat';
 
   // Persist current active route across browser refreshes
   useEffect(() => {
@@ -59,17 +60,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-[100dvh] overflow-hidden bg-background">
       {/* Desktop sidebar */}
-      <Sidebar />
+      {!isChatPage && <Sidebar />}
 
       {/* Main column */}
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        {!isProfilePage && <Header />}
+        {!isProfilePage && !isChatPage && <Header />}
 
         {/* Only this scrolls */}
         <main
           id="main-content"
           className={
-            isProfilePage
+            isChatPage
+              ? 'flex-1 overflow-hidden p-0 h-[100dvh]'
+              : isProfilePage
               ? 'flex-1 overflow-y-auto overscroll-contain pb-0'
               : 'flex-1 overflow-y-auto overscroll-contain px-4 pb-20 sm:px-6 sm:pb-10 lg:px-8'
           }
@@ -79,10 +82,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       </div>
 
       {/* Mobile bottom nav */}
-      <BottomNav />
+      {!isChatPage && <BottomNav />}
 
       {/* FAB — desktop only (mobile uses BottomNav center button) */}
-      <FloatingAddButton />
+      {!isChatPage && <FloatingAddButton />}
 
       {/* Add / Edit transaction sheet */}
       <BottomSheet
@@ -133,12 +136,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         )}
       </BottomSheet>
 
-      {/* Global Persistent Live Chat Support Desk Modal */}
-      <LiveChatModal
-        isOpen={isLiveChatOpen}
-        onClose={closeLiveChat}
-        user={user ? { name: user.name, email: user.email, username: user.username, memberId: user.memberId, avatar: user.avatar } : undefined}
-      />
+      {/* Global Persistent Live Chat Support Desk Modal (when not on /chat page) */}
+      {pathname !== '/chat' && (
+        <LiveChatModal
+          isOpen={isLiveChatOpen}
+          onClose={closeLiveChat}
+          user={user ? { name: user.name, email: user.email, username: user.username, memberId: user.memberId, avatar: user.avatar } : undefined}
+        />
+      )}
     </div>
   );
 }

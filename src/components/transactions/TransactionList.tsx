@@ -39,7 +39,9 @@ function getTransactionId(transaction?: Transaction | null) {
 }
 
 function getDateLabel(dateStr: string): string {
+  if (!dateStr) return 'UNKNOWN DATE';
   const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return 'UNKNOWN DATE';
   const today = new Date();
   const yesterday = new Date(today);
   yesterday.setDate(today.getDate() - 1);
@@ -86,7 +88,7 @@ export function TransactionList({
 
   // Flatten pages into one array
   const allItems = useMemo(
-    () => data?.pages.flatMap((p) => p.items) ?? [],
+    () => data?.pages?.flatMap((p) => p?.items ?? []) ?? [],
     [data]
   );
 

@@ -68,12 +68,12 @@ export function RecentTransactions({
       <div className="flex flex-col gap-3 pb-2">
         {hasTransactions ? (
           transactions.map((tx, idx) => {
-            const category = tx.category as Category;
-            const catName = category?.name ?? tx.title;
+            const category = tx.category;
+            const catName = (typeof category === 'object' && category?.name) ? category.name : (tx.title || 'Expense');
             const theme = getCategoryTheme(catName);
 
             const IconComponent =
-              category?.icon && Icons[category.icon as keyof typeof Icons]
+              (typeof category === 'object' && category?.icon && Icons[category.icon as keyof typeof Icons])
                 ? (Icons[category.icon as keyof typeof Icons] as IconType)
                 : theme.icon;
 

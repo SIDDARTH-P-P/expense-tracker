@@ -28,6 +28,7 @@ import {
   FiLogOut,
   FiBell,
 } from 'react-icons/fi';
+import { ProfileSkeleton } from '@/components/common/Skeleton';
 import toast from 'react-hot-toast';
 import { useNotifications } from '@/hooks/useNotifications';
 import { NotificationPanel } from '@/components/layout/NotificationPanel';
@@ -324,11 +325,7 @@ export function ProfileCard() {
   const languages = ['English', 'Spanish', 'French', 'German', 'Bengali'];
 
   if (isLoading && !user) {
-    return (
-      <div className="flex h-96 items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-      </div>
-    );
+    return <ProfileSkeleton />;
   }
 
 
@@ -750,7 +747,7 @@ export function ProfileCard() {
             </div>
             <button
               type="button"
-              onClick={openLiveChat}
+              onClick={() => router.push('/chat')}
               className="w-full mt-2 rounded-xl border border-border bg-surface py-2 font-semibold text-foreground hover:bg-surface-2 transition-colors flex items-center justify-center gap-2"
             >
               <FiHeadphones size={14} className="text-primary" />

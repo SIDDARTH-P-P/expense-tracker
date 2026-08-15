@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiBell, FiMoon, FiSun, FiSettings } from 'react-icons/fi';
+import { FiBell, FiMoon, FiSun, FiSettings, FiHeadphones } from 'react-icons/fi';
 import { useCurrentUser } from '@/hooks/useAuth';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useTheme } from '@/hooks/useTheme';
@@ -137,6 +137,14 @@ export function Header() {
                 </motion.span>
               )}
             </button>
+
+            <Link
+              href="/chat"
+              aria-label="Support Desk"
+              className="hidden sm:flex h-9 w-9 items-center justify-center rounded-2xl border border-border bg-surface text-foreground transition-all hover:border-primary/40 hover:bg-primary/5 hover:scale-105 active:scale-95"
+            >
+              <FiHeadphones size={16} />
+            </Link>
 
             <Link
               href="/settings"

@@ -146,7 +146,7 @@ export function ActivityLogView({ hideHeader = false }: ActivityLogViewProps) {
 
   // Flatten infinite query pages into single log items list
   const logs = useMemo(
-    () => data?.pages.flatMap((p) => p.items) ?? [],
+    () => data?.pages?.flatMap((p) => p?.items ?? []) ?? [],
     [data]
   );
 

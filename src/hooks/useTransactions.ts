@@ -49,27 +49,29 @@ function addTransactionToSummary(summary: DashboardSummary, transaction: Transac
   const inCurrentMonth = transactionDate ? isSameMonth(transactionDate, now) : false;
   const isToday = transactionDate ? isSameDay(transactionDate, now) : false;
 
-  const monthlyIncome = summary.monthlyIncome + (inCurrentMonth && transaction.type === 'income' ? amount : 0);
-  const monthlyExpense = summary.monthlyExpense + (inCurrentMonth && transaction.type === 'expense' ? amount : 0);
-  const recentTransactions = [transaction, ...summary.recentTransactions.filter((item) => item.id !== transaction.id)]
+  const currentIncome = summary?.monthlyIncome ?? 0;
+  const currentExpense = summary?.monthlyExpense ?? 0;
+  const monthlyIncome = currentIncome + (inCurrentMonth && transaction.type === 'income' ? amount : 0);
+  const monthlyExpense = currentExpense + (inCurrentMonth && transaction.type === 'expense' ? amount : 0);
+  const recentTransactions = [transaction, ...(summary?.recentTransactions ?? []).filter((item) => item?.id !== transaction.id)]
     .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
     .slice(0, 8);
 
   const monthlyTrend = transactionDate
-    ? summary.monthlyTrend.map((item) =>
+    ? (summary?.monthlyTrend ?? []).map((item) =>
         item.month === transactionDate.toLocaleString('en-US', { month: 'short' })
-          ? { ...item, [transaction.type]: item[transaction.type] + amount }
+          ? { ...item, [transaction.type]: (item[transaction.type] ?? 0) + amount }
           : item
       )
-    : summary.monthlyTrend;
+    : (summary?.monthlyTrend ?? []);
 
   return {
     ...summary,
-    totalBalance: summary.totalBalance + signedAmount,
+    totalBalance: (summary?.totalBalance ?? 0) + signedAmount,
     monthlyIncome,
     monthlyExpense,
     monthlySavings: monthlyIncome - monthlyExpense,
-    todaySpending: summary.todaySpending + (isToday && transaction.type === 'expense' ? amount : 0),
+    todaySpending: (summary?.todaySpending ?? 0) + (isToday && transaction.type === 'expense' ? amount : 0),
     recentTransactions,
     monthlyTrend,
   };

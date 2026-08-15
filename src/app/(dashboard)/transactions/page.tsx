@@ -133,8 +133,11 @@ export default function TransactionsPage() {
     { enabled: (viewMode === 'cashbook' && selectedNotebookId === null) || isExportModalOpen }
   );
 
-  const totalCount = infiniteData?.pages[0]?.total ?? 0;
-  const allFilteredItems = cashbookData?.items ?? infiniteData?.pages.flatMap((p) => p.items) ?? [];
+  const totalCount = infiniteData?.pages?.[0]?.total ?? 0;
+  const allFilteredItems = useMemo(
+    () => cashbookData?.items ?? infiniteData?.pages?.flatMap((p) => p?.items ?? []) ?? [],
+    [cashbookData?.items, infiniteData?.pages]
+  );
 
   const activeBookTxCount = useMemo(() => {
     if (!selectedNotebookId) return 0;
@@ -318,7 +321,7 @@ export default function TransactionsPage() {
           <CashBookView
             transactions={
               isBookOpen
-                ? (infiniteData?.pages.flatMap((p) => p.items) ?? [])
+                ? (infiniteData?.pages?.flatMap((p) => p?.items ?? []) ?? [])
                 : allFilteredItems
             }
             currency={user?.currency ?? 'INR'}

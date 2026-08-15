@@ -262,8 +262,8 @@ export function useNotifications() {
         try {
           const settings = JSON.parse(event.data);
           if (settings.theme) {
-            const currentTheme = useUIStore.getState().theme;
-            if (currentTheme !== settings.theme) {
+            const stored = typeof window !== 'undefined' ? localStorage.getItem('et-theme') : null;
+            if (!stored && useUIStore.getState().theme !== settings.theme) {
               useUIStore.getState().setTheme(settings.theme);
             }
             qc.invalidateQueries({ queryKey: ['auth', 'me'] });

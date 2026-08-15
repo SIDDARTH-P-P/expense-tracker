@@ -7,26 +7,22 @@ import { apiClient } from '@/services/api-client';
 import { useQueryClient } from '@tanstack/react-query';
 import type { User } from '@/types';
 
-/** Syncs the Zustand theme with localStorage + the OS preference on first mount. */
 export function useTheme() {
   const theme = useUIStore((s) => s.theme);
   const setTheme = useUIStore((s) => s.setTheme);
   const user = useAuthStore((s) => s.user);
   const qc = useQueryClient();
 
+  // Ensure DOM html class always stays in sync with active theme state
   useEffect(() => {
-    const stored = localStorage.getItem('et-theme') as 'light' | 'dark' | null;
-    const targetTheme = stored ?? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-    if (useUIStore.getState().theme !== targetTheme) {
-      setTheme(targetTheme);
+    if (typeof document !== 'undefined') {
+      document.documentElement.classList.toggle('dark', theme === 'dark');
+      localStorage.setItem('et-theme', theme);
     }
-  }, [setTheme]);
+  }, [theme]);
 
   const toggleTheme = async () => {
-    const isCurrentlyDark = typeof document !== 'undefined'
-      ? document.documentElement.classList.contains('dark')
-      : theme === 'dark';
-    const nextTheme = isCurrentlyDark ? 'light' : 'dark';
+    const nextTheme = theme === 'dark' ? 'light' : 'dark';
     
     // Immediately apply theme state & DOM changes
     setTheme(nextTheme);

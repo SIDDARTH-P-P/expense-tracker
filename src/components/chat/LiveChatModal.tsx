@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FiSend,
@@ -29,6 +30,7 @@ import {
 import toast from 'react-hot-toast';
 import { apiClient } from '@/services/api-client';
 import { ChatMessagesSkeleton } from '@/components/common/Skeleton';
+import { useTheme } from '@/hooks/useTheme';
 
 export interface ChatMessageItem {
   id: string;
@@ -66,8 +68,9 @@ const renderMessageTicks = (status?: 'sent' | 'delivered' | 'read') => {
 };
 
 interface LiveChatModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+  isOpen?: boolean;
+  onClose?: () => void;
+  isPage?: boolean;
   user?: {
     name?: string;
     email?: string;
@@ -77,7 +80,24 @@ interface LiveChatModalProps {
   };
 }
 
-export function LiveChatModal({ isOpen, onClose, user }: LiveChatModalProps) {
+export function LiveChatModal({ isOpen = true, onClose, isPage = false, user }: LiveChatModalProps) {
+  const router = useRouter();
+  const handleClose = () => {
+    if (isPage) {
+      if (typeof window !== 'undefined' && window.history.length > 1) {
+        router.back();
+      } else {
+        router.push('/profile');
+      }
+      return;
+    }
+    if (onClose) {
+      onClose();
+    }
+  };
+
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
   const [messages, setMessages] = useState<ChatMessageItem[]>([]);
   const [inputMessage, setInputMessage] = useState('');
   const [ticketId, setTicketId] = useState('TK-CONNECTING');
@@ -158,8 +178,16 @@ export function LiveChatModal({ isOpen, onClose, user }: LiveChatModalProps) {
   }, [isOpen]);
 
   useEffect(() => {
-    scrollToBottom(false);
-  }, [messages, isTyping, systemEvent, isRecording]);
+    if (isOpen && !isLoading) {
+      scrollToBottom(true);
+      const timer1 = setTimeout(() => scrollToBottom(true), 50);
+      const timer2 = setTimeout(() => scrollToBottom(true), 300);
+      return () => {
+        clearTimeout(timer1);
+        clearTimeout(timer2);
+      };
+    }
+  }, [messages, isTyping, systemEvent, isRecording, isLoading, isOpen]);
 
   const fetchChatHistory = async (isSilent = false) => {
     if (!isSilent) setIsLoading(true);
@@ -559,58 +587,84 @@ export function LiveChatModal({ isOpen, onClose, user }: LiveChatModalProps) {
     }
   };
 
-  if (!isOpen) return null;
+  const sortedMessages = useMemo(() => {
+    return [...messages].sort(
+      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    );
+  }, [messages]);
 
-  return (
-    <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4">
-        {/* Backdrop */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="absolute inset-0 bg-black/65 backdrop-blur-sm"
-          onClick={onClose}
-        />
+  const currentDateHeader = useMemo(() => {
+    return new Date().toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  }, []);
 
-        {/* Hidden Inputs for File Uploads */}
-        <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageFileChange} />
-        <input ref={fileInputRef} type="file" accept="*" className="hidden" onChange={handleDocFileChange} />
-        <input ref={audioInputRef} type="file" accept="audio/*" capture="user" className="hidden" onChange={handleAudioFileChange} />
+  const formatMsgTime = (dateStr: string) => {
+    try {
+      const d = new Date(dateStr);
+      if (isNaN(d.getTime())) return '';
+      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
+    } catch {
+      return '';
+    }
+  };
 
-        {/* Mobile / Desktop Chat Container with App Theme */}
-        <motion.div
-          initial={{ opacity: 0, y: 30, scale: 0.98 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 30, scale: 0.98 }}
-          transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-          className="relative z-10 flex h-full w-full sm:h-[92vh] sm:max-h-[720px] sm:max-w-md flex-col overflow-hidden bg-[#0d0d14] sm:rounded-3xl shadow-2xl border border-white/10"
-        >
-          {/* ── Top Header Bar ── */}
-          <div className="flex items-center justify-between border-b border-white/10 bg-[#15151e]/95 px-4 py-3 backdrop-blur-md text-white">
-            <div className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={onClose}
-                className="flex h-9 w-9 items-center justify-center rounded-full text-white/80 hover:bg-white/10 transition-colors"
-              >
-                <FiChevronLeft size={24} />
-              </button>
+  if (!isOpen && !isPage) return null;
+
+  const chatBody = (
+    <>
+      {/* Hidden Inputs for File Uploads */}
+      <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageFileChange} />
+      <input ref={fileInputRef} type="file" accept="*" className="hidden" onChange={handleDocFileChange} />
+      <input ref={audioInputRef} type="file" accept="audio/*" capture="user" className="hidden" onChange={handleAudioFileChange} />
+
+      {/* Mobile / Desktop Chat Container with App Theme */}
+      <motion.div
+        initial={{ opacity: 0, y: isPage ? 0 : 30, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: isPage ? 0 : 30, scale: 0.98 }}
+        transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+        className={
+          isPage
+            ? `relative z-10 flex h-[100dvh] w-full max-w-lg mx-auto flex-col overflow-hidden sm:rounded-3xl shadow-xl border transition-colors ${
+                isDark ? 'bg-[#0d0d14] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'
+              }`
+            : `relative z-10 flex h-full w-full sm:h-[92vh] sm:max-h-[720px] sm:max-w-md flex-col overflow-hidden sm:rounded-3xl shadow-2xl border transition-colors ${
+                isDark ? 'bg-[#0d0d14] border-white/10 text-white' : 'bg-white border-slate-200 text-slate-900'
+              }`
+        }
+      >
+        {/* ── Top Header Bar ── */}
+        <div className={`flex items-center justify-between border-b px-4 py-3 backdrop-blur-md transition-colors ${
+          isDark ? 'border-white/10 bg-[#15151e]/95 text-white' : 'border-slate-200 bg-white/95 text-slate-900'
+        }`}>
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleClose}
+              className={`flex h-9 w-9 items-center justify-center rounded-full transition-colors ${
+                isDark ? 'text-white/80 hover:bg-white/10' : 'text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              <FiChevronLeft size={24} />
+            </button>
               <div>
                 <div className="flex items-center gap-1.5">
-                  <h3 className="text-base font-bold text-white">
+                  <h3 className={`text-base font-bold ${isDark ? 'text-white' : 'text-slate-900'}`}>
                     {currentAgentName}
                   </h3>
                   <span className="h-2.5 w-2.5 rounded-full bg-emerald-500 inline-block ring-2 ring-emerald-500/20" />
                 </div>
-                <div className="flex items-center gap-1 text-xs text-white/60 font-mono">
+                <div className={`flex items-center gap-1 text-xs font-mono ${isDark ? 'text-white/60' : 'text-slate-500'}`}>
                   <span>{ticketId}</span>
                   <button
                     type="button"
                     onClick={handleCopyTicket}
-                    className="p-0.5 hover:text-white transition-colors"
+                    className="p-0.5 hover:text-primary transition-colors"
                   >
-                    {copiedTicket ? <FiCheck size={12} className="text-emerald-400" /> : <FiCopy size={12} />}
+                    {copiedTicket ? <FiCheck size={12} className="text-emerald-500" /> : <FiCopy size={12} />}
                   </button>
                 </div>
               </div>
@@ -620,7 +674,9 @@ export function LiveChatModal({ isOpen, onClose, user }: LiveChatModalProps) {
               <button
                 type="button"
                 onClick={handleClearHistory}
-                className="flex h-8 w-8 items-center justify-center rounded-full text-white/60 hover:bg-red-500/20 hover:text-red-400 transition-colors"
+                className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
+                  isDark ? 'text-white/60 hover:bg-red-500/20 hover:text-red-400' : 'text-slate-400 hover:bg-red-50 hover:text-red-500'
+                }`}
                 title="Clear Chat History"
               >
                 <FiTrash2 size={17} />
@@ -628,7 +684,9 @@ export function LiveChatModal({ isOpen, onClose, user }: LiveChatModalProps) {
               <button
                 type="button"
                 onClick={onClose}
-                className="flex h-8 w-8 items-center justify-center rounded-full text-white/60 hover:bg-white/10 hover:text-white transition-colors"
+                className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors ${
+                  isDark ? 'text-white/60 hover:bg-white/10 hover:text-white' : 'text-slate-400 hover:bg-slate-100 hover:text-slate-700'
+                }`}
               >
                 <FiX size={20} />
               </button>
@@ -639,24 +697,32 @@ export function LiveChatModal({ isOpen, onClose, user }: LiveChatModalProps) {
           <div
             ref={chatContainerRef}
             onScroll={handleScroll}
-            className="flex-1 overflow-y-auto px-4 py-4 space-y-3 relative bg-[#0d0d14]"
+            className={`flex-1 overflow-y-auto px-4 py-4 space-y-3 relative transition-colors ${
+              isDark ? 'bg-[#0d0d14]' : 'bg-slate-100/90'
+            }`}
             style={{
-              backgroundImage: `radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px)`,
+              backgroundImage: `radial-gradient(${
+                isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.06)'
+              } 1px, transparent 1px)`,
               backgroundSize: '18px 18px',
             }}
           >
             {/* Centered Telegram Date Header */}
             <div className="text-center my-2">
-              <span className="text-[11px] font-medium text-white/80 bg-[#1c1c28]/90 backdrop-blur-md px-3.5 py-1 rounded-full border border-white/10 shadow-xs">
-                August 15
+              <span className={`text-[11px] font-medium px-3.5 py-1 rounded-full border shadow-xs backdrop-blur-md transition-colors ${
+                isDark
+                  ? 'text-white/80 bg-[#1c1c28]/90 border-white/10'
+                  : 'text-slate-700 bg-white/90 border-slate-200'
+              }`}>
+                {currentDateHeader}
               </span>
             </div>
 
-            {isLoading && messages.length === 0 ? (
-              <ChatMessagesSkeleton />
+            {isLoading && sortedMessages.length === 0 ? (
+              <ChatMessagesSkeleton isDark={isDark} />
             ) : (
               <>
-                {messages.map((msg) => {
+                {sortedMessages.map((msg: ChatMessageItem) => {
                   const isUser = msg.sender === 'user';
                   const senderTitle = msg.senderName || (msg.sender === 'agent' ? 'Sarah Jenkins' : 'Expense Desk');
 
@@ -692,7 +758,7 @@ export function LiveChatModal({ isOpen, onClose, user }: LiveChatModalProps) {
                             <p className="mt-1.5 px-1 text-xs text-foreground">{msg.text}</p>
                           )}
                           <div className="mt-1 px-1 flex items-center justify-end gap-1 text-[10px]">
-                            <span className="text-muted">{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            <span className="text-muted">{formatMsgTime(msg.createdAt)}</span>
                             {isUser && renderMessageTicks(msg.status)}
                           </div>
                         </div>
@@ -721,7 +787,7 @@ export function LiveChatModal({ isOpen, onClose, user }: LiveChatModalProps) {
                             <audio controls src={msg.mediaUrl} className="w-full max-w-[240px] h-8 rounded-lg" />
                           )}
                           <div className="mt-1.5 flex items-center justify-end gap-1 text-[10px]">
-                            <span className="text-muted">{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            <span className="text-muted">{formatMsgTime(msg.createdAt)}</span>
                             {isUser && renderMessageTicks(msg.status)}
                           </div>
                         </div>
@@ -764,7 +830,7 @@ export function LiveChatModal({ isOpen, onClose, user }: LiveChatModalProps) {
                             )}
                           </div>
                           <div className="mt-1.5 flex items-center justify-end gap-1 text-[10px]">
-                            <span className="text-muted">{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            <span className="text-muted">{formatMsgTime(msg.createdAt)}</span>
                             {isUser && renderMessageTicks(msg.status)}
                           </div>
                         </div>
@@ -829,7 +895,7 @@ export function LiveChatModal({ isOpen, onClose, user }: LiveChatModalProps) {
                             </button>
                           </div>
                           <span className="text-[10px] text-muted">
-                            {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            {formatMsgTime(msg.createdAt)}
                           </span>
                         </div>
                       </motion.div>
@@ -868,7 +934,7 @@ export function LiveChatModal({ isOpen, onClose, user }: LiveChatModalProps) {
                         </div>
 
                         <p className="text-[10px] text-muted text-right">
-                          {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          {formatMsgTime(msg.createdAt)}
                         </p>
                       </motion.div>
                     );
@@ -886,20 +952,22 @@ export function LiveChatModal({ isOpen, onClose, user }: LiveChatModalProps) {
                         <div className="max-w-[82%] rounded-[20px] rounded-tr-[4px] bg-gradient-to-r from-[#9d4edd] to-[#805ad5] text-white px-4 py-2.5 text-sm shadow-md">
                           <p className="whitespace-pre-wrap break-words">{msg.text}</p>
                           <div className="mt-1 flex items-center justify-end gap-1 text-[10px] opacity-90">
-                            <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                            <span>{formatMsgTime(msg.createdAt)}</span>
                             {renderMessageTicks(msg.status)}
                           </div>
                         </div>
                       ) : (
-                        <div className="max-w-[85%] rounded-[20px] rounded-tl-[4px] border border-white/10 bg-[#1e1e28] text-white p-3.5 shadow-md">
-                          <p className="text-[11px] font-bold text-[#b87cf8] mb-1">
+                        <div className={`max-w-[85%] rounded-[20px] rounded-tl-[4px] border p-3.5 shadow-md transition-colors ${
+                          isDark ? 'border-white/10 bg-[#1e1e28] text-white' : 'border-slate-200/80 bg-white text-slate-900'
+                        }`}>
+                          <p className={`text-[11px] font-bold mb-1 ${isDark ? 'text-[#b87cf8]' : 'text-purple-700'}`}>
                             {senderTitle}
                           </p>
-                          <p className="text-sm text-white/95 leading-relaxed whitespace-pre-wrap break-words">
+                          <p className={`text-sm leading-relaxed whitespace-pre-wrap break-words ${isDark ? 'text-white/95' : 'text-slate-800'}`}>
                             {msg.text}
                           </p>
-                          <p className="mt-1.5 text-[10px] text-white/60 text-right">
-                            {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          <p className={`mt-1.5 text-[10px] text-right ${isDark ? 'text-white/60' : 'text-slate-400'}`}>
+                            {formatMsgTime(msg.createdAt)}
                           </p>
                         </div>
                       )}
@@ -914,11 +982,11 @@ export function LiveChatModal({ isOpen, onClose, user }: LiveChatModalProps) {
                     animate={{ opacity: 1, scale: 1 }}
                     className="flex items-center gap-3 my-4"
                   >
-                    <div className="h-[1px] flex-1 bg-white/10" />
-                    <span className="text-[12px] font-bold text-white/80">
+                    <div className={`h-[1px] flex-1 ${isDark ? 'bg-white/10' : 'bg-slate-200'}`} />
+                    <span className={`text-[12px] font-bold ${isDark ? 'text-white/80' : 'text-slate-600'}`}>
                       {systemEvent}
                     </span>
-                    <div className="h-[1px] flex-1 bg-white/10" />
+                    <div className={`h-[1px] flex-1 ${isDark ? 'bg-white/10' : 'bg-slate-200'}`} />
                   </motion.div>
                 )}
 
@@ -951,15 +1019,17 @@ export function LiveChatModal({ isOpen, onClose, user }: LiveChatModalProps) {
                   <motion.div
                     initial={{ opacity: 0, y: 6 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="rounded-[20px] rounded-tl-[4px] border border-white/10 bg-[#1e1e28] px-4 py-3 shadow-md max-w-[160px]"
+                    className={`rounded-[20px] rounded-tl-[4px] border px-4 py-3 shadow-md max-w-[160px] transition-colors ${
+                      isDark ? 'border-white/10 bg-[#1e1e28]' : 'border-slate-200 bg-white'
+                    }`}
                   >
-                    <p className="text-[11px] font-bold text-[#b87cf8] mb-1">
+                    <p className={`text-[11px] font-bold mb-1 ${isDark ? 'text-[#b87cf8]' : 'text-purple-700'}`}>
                       {currentAgentName}
                     </p>
                     <div className="flex items-center gap-1.5 py-1">
-                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#b87cf8]" />
-                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#b87cf8] [animation-delay:0.2s]" />
-                      <span className="h-1.5 w-1.5 animate-bounce rounded-full bg-[#b87cf8] [animation-delay:0.4s]" />
+                      <span className={`h-1.5 w-1.5 animate-bounce rounded-full ${isDark ? 'bg-[#b87cf8]' : 'bg-purple-600'}`} />
+                      <span className={`h-1.5 w-1.5 animate-bounce rounded-full [animation-delay:0.2s] ${isDark ? 'bg-[#b87cf8]' : 'bg-purple-600'}`} />
+                      <span className={`h-1.5 w-1.5 animate-bounce rounded-full [animation-delay:0.4s] ${isDark ? 'bg-[#b87cf8]' : 'bg-purple-600'}`} />
                     </div>
                   </motion.div>
                 )}
@@ -989,7 +1059,9 @@ export function LiveChatModal({ isOpen, onClose, user }: LiveChatModalProps) {
                 animate={{ y: 0, opacity: 1 }}
                 exit={{ y: '100%', opacity: 0 }}
                 transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-                className="absolute bottom-16 left-0 right-0 z-30 bg-[#181824] border-t border-white/10 rounded-t-3xl p-4 shadow-2xl space-y-4"
+                className={`absolute bottom-16 left-0 right-0 z-30 border-t rounded-t-3xl p-4 shadow-2xl space-y-4 transition-colors ${
+                  isDark ? 'bg-[#181824] border-white/10' : 'bg-white border-slate-200'
+                }`}
               >
                 <div className="w-12 h-1.5 bg-white/20 rounded-full mx-auto mb-1" />
 
@@ -1307,23 +1379,27 @@ export function LiveChatModal({ isOpen, onClose, user }: LiveChatModalProps) {
           </AnimatePresence>
 
           {/* ── Telegram / WhatsApp Bottom Input Footer ── */}
-          <div className="border-t border-white/10 bg-[#12121a] p-2.5 sm:p-3 relative">
+          <div className={`border-t p-2.5 sm:p-3 relative transition-colors ${
+            isDark ? 'border-white/10 bg-[#12121a]' : 'border-slate-200 bg-white'
+          }`}>
             <div className="flex items-center gap-2">
               {isRecording ? (
                 /* WhatsApp Live Voice Recording Active Capsule */
-                <div className="flex-1 flex items-center justify-between rounded-full border border-red-500/40 bg-[#1e1e28] px-4 py-2 text-white">
+                <div className={`flex-1 flex items-center justify-between rounded-full border px-4 py-2 ${
+                  isDark ? 'border-red-500/40 bg-[#1e1e28] text-white' : 'border-red-300 bg-red-50 text-slate-900'
+                }`}>
                   <div className="flex items-center gap-2">
                     <span className="h-3 w-3 rounded-full bg-red-500 animate-ping shrink-0" />
-                    <span className="text-xs font-bold text-red-400 font-mono">
+                    <span className="text-xs font-bold text-red-500 font-mono">
                       {Math.floor(recordingTime / 60).toString().padStart(2, '0')}:{(recordingTime % 60).toString().padStart(2, '0')}
                     </span>
                     {/* Animated Audio Equalizer Bars */}
                     <div className="flex items-center gap-0.5 ml-2">
-                      <span className="h-3 w-1 bg-red-400 rounded-full animate-bounce [animation-delay:0s]" />
-                      <span className="h-5 w-1 bg-red-400 rounded-full animate-bounce [animation-delay:0.15s]" />
-                      <span className="h-2 w-1 bg-red-400 rounded-full animate-bounce [animation-delay:0.3s]" />
-                      <span className="h-4 w-1 bg-red-400 rounded-full animate-bounce [animation-delay:0.45s]" />
-                      <span className="h-3 w-1 bg-red-400 rounded-full animate-bounce [animation-delay:0.6s]" />
+                      <span className="h-3 w-1 bg-red-500 rounded-full animate-bounce [animation-delay:0s]" />
+                      <span className="h-5 w-1 bg-red-500 rounded-full animate-bounce [animation-delay:0.15s]" />
+                      <span className="h-2 w-1 bg-red-500 rounded-full animate-bounce [animation-delay:0.3s]" />
+                      <span className="h-4 w-1 bg-red-500 rounded-full animate-bounce [animation-delay:0.45s]" />
+                      <span className="h-3 w-1 bg-red-500 rounded-full animate-bounce [animation-delay:0.6s]" />
                     </div>
                   </div>
 
@@ -1331,7 +1407,7 @@ export function LiveChatModal({ isOpen, onClose, user }: LiveChatModalProps) {
                   <button
                     type="button"
                     onClick={cancelRecording}
-                    className="flex h-8 w-8 items-center justify-center rounded-full text-red-400 hover:bg-red-500/20 transition-colors"
+                    className="flex h-8 w-8 items-center justify-center rounded-full text-red-500 hover:bg-red-500/20 transition-colors"
                     title="Cancel recording"
                   >
                     <FiTrash2 size={16} />
@@ -1339,10 +1415,14 @@ export function LiveChatModal({ isOpen, onClose, user }: LiveChatModalProps) {
                 </div>
               ) : (
                 /* Standard Telegram Input Pill Capsule */
-                <div className="flex-1 flex items-center rounded-full border border-white/10 bg-[#1e1e28] px-3.5 py-1.5 focus-within:border-[#9d4edd] transition-colors">
+                <div className={`flex-1 flex items-center rounded-full border px-3.5 py-1.5 focus-within:border-[#9d4edd] transition-colors ${
+                  isDark ? 'border-white/10 bg-[#1e1e28]' : 'border-slate-200 bg-slate-100'
+                }`}>
                   <button
                     type="button"
-                    className="text-white/60 hover:text-white transition-colors pr-2"
+                    className={`transition-colors pr-2 ${
+                      isDark ? 'text-white/60 hover:text-white' : 'text-slate-400 hover:text-slate-700'
+                    }`}
                     title="Emoji"
                   >
                     <FiSmile size={20} />
@@ -1356,14 +1436,18 @@ export function LiveChatModal({ isOpen, onClose, user }: LiveChatModalProps) {
                     onKeyDown={handleKeyDown}
                     placeholder="Message"
                     disabled={isSending}
-                    className="w-full bg-transparent text-sm text-white placeholder:text-white/40 focus:outline-none disabled:opacity-50"
+                    className={`w-full bg-transparent text-sm focus:outline-none disabled:opacity-50 ${
+                      isDark ? 'text-white placeholder:text-white/40' : 'text-slate-900 placeholder:text-slate-400'
+                    }`}
                   />
 
                   <button
                     type="button"
                     onClick={() => setShowAttachmentSheet(!showAttachmentSheet)}
                     disabled={isSending}
-                    className="text-white/60 hover:text-white transition-colors pl-2"
+                    className={`transition-colors pl-2 ${
+                      isDark ? 'text-white/60 hover:text-white' : 'text-slate-400 hover:text-slate-700'
+                    }`}
                     title="Attach media"
                   >
                     <FiPaperclip size={20} className={showAttachmentSheet ? 'text-[#9d4edd] rotate-45 transition-transform' : ''} />
@@ -1406,26 +1490,45 @@ export function LiveChatModal({ isOpen, onClose, user }: LiveChatModalProps) {
             </div>
           </div>
         </motion.div>
-      </div>
 
-      {/* Fullscreen Image Preview Zoom Modal */}
-      {previewZoomImage && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
-          onClick={() => setPreviewZoomImage(null)}
-        >
-          <div className="relative max-h-[90vh] max-w-[90vw]">
-            <img src={previewZoomImage} alt="Zoom" className="max-h-[85vh] max-w-full rounded-2xl object-contain shadow-2xl" />
-            <button
-              type="button"
-              onClick={() => setPreviewZoomImage(null)}
-              className="absolute top-2 right-2 rounded-full bg-black/60 p-2 text-white hover:bg-black"
-            >
-              <FiX size={20} />
-            </button>
+        {/* Fullscreen Image Preview Zoom Modal */}
+        {previewZoomImage && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
+            onClick={() => setPreviewZoomImage(null)}
+          >
+            <div className="relative max-h-[90vh] max-w-[90vw]">
+              <img src={previewZoomImage} alt="Zoom" className="max-h-[85vh] max-w-full rounded-2xl object-contain shadow-2xl" />
+              <button
+                type="button"
+                onClick={() => setPreviewZoomImage(null)}
+                className="absolute top-2 right-2 rounded-full bg-black/60 p-2 text-white hover:bg-black"
+              >
+                <FiX size={20} />
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </>
+    );
+
+  if (isPage) {
+    return <div className="w-full h-full">{chatBody}</div>;
+  }
+
+  return (
+    <AnimatePresence>
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-0 sm:p-4">
+        {/* Backdrop */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="absolute inset-0 bg-black/65 backdrop-blur-sm"
+          onClick={handleClose}
+        />
+        {chatBody}
+      </div>
     </AnimatePresence>
   );
 }

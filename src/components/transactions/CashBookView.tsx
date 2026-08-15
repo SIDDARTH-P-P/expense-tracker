@@ -97,8 +97,8 @@ interface DayGroup {
 }
 
 export function CashBookView({
-  transactions,
-  currency,
+  transactions = [],
+  currency = 'INR',
   selectedNotebookId: propSelectedNotebookId,
   onSelectNotebook,
   isLoading,

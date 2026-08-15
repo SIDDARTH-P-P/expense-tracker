@@ -89,7 +89,8 @@ export const dashboardService = {
       .forEach((t) => {
         const cat = t.category as unknown as ICategory;
         if (!cat) return;
-        const key = String(cat._id);
+        const key = typeof cat === 'object' && cat !== null ? String(cat._id || cat.id || '') : String(cat || '');
+        if (!key) return;
         const existing = categoryTotals.get(key);
         if (existing) existing.total += t.amount;
         else categoryTotals.set(key, { category: cat, total: t.amount });

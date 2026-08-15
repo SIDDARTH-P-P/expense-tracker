@@ -52,9 +52,9 @@ export default function DashboardPage() {
           totalBalance={summary.totalBalance ?? 0}
           monthlyIncome={summary.monthlyIncome ?? 0}
           monthlyExpense={summary.monthlyExpense ?? 0}
-          incomeChangePct={summary.incomeChangePct}
-          expenseChangePct={summary.expenseChangePct}
-          monthlyTrend={summary.monthlyTrend}
+          incomeChangePct={summary.incomeChangePct ?? 0}
+          expenseChangePct={summary.expenseChangePct ?? 0}
+          monthlyTrend={summary.monthlyTrend ?? []}
           currency={currency}
         />
 
@@ -74,7 +74,7 @@ export default function DashboardPage() {
 
       {/* Expense Items List only (Scrolls underneath the sticky header) */}
       <RecentTransactions
-        transactions={summary.recentTransactions}
+        transactions={summary.recentTransactions ?? []}
         currency={currency}
         showHeader={false}
       />

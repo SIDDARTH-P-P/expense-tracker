@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
  * Route-level guard. Runs on the edge before the request reaches a page,
  * redirecting unauthenticated or tampered session users away from protected routes.
  */
-const PROTECTED_PREFIXES = ['/dashboard', '/transactions', '/categories', '/settings', '/profile'];
+const PROTECTED_PREFIXES = ['/dashboard', '/transactions', '/categories', '/settings', '/profile', '/chat'];
 const AUTH_PREFIXES = ['/login', '/signup'];
 
 export function middleware(req: NextRequest) {
@@ -45,6 +45,8 @@ export const config = {
     '/settings/:path*',
     '/profile',
     '/profile/:path*',
+    '/chat',
+    '/chat/:path*',
     '/login',
     '/signup',
   ],
