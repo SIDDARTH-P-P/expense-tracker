@@ -16,6 +16,9 @@ interface UIState {
   customStartDate: string | null;
   customEndDate: string | null;
   splitFilterMode: 'all' | 'own';
+  isLiveChatOpen: boolean;
+  openLiveChat: () => void;
+  closeLiveChat: () => void;
   setTheme: (theme: 'light' | 'dark') => void;
   toggleTheme: () => void;
   openAddSheet: (type?: 'income' | 'expense') => void;
@@ -43,6 +46,15 @@ export const useUIStore = create<UIState>((set, get) => ({
   customStartDate: null,
   customEndDate: null,
   splitFilterMode: 'all',
+  isLiveChatOpen: typeof window !== 'undefined' ? localStorage.getItem('et_chat_open') === 'true' : false,
+  openLiveChat: () => {
+    if (typeof window !== 'undefined') localStorage.setItem('et_chat_open', 'true');
+    set({ isLiveChatOpen: true });
+  },
+  closeLiveChat: () => {
+    if (typeof window !== 'undefined') localStorage.setItem('et_chat_open', 'false');
+    set({ isLiveChatOpen: false });
+  },
   setTheme: (theme) => {
     set({ theme });
     if (typeof document !== 'undefined') {

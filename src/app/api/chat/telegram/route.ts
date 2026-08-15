@@ -6,6 +6,7 @@ import ChatMessage from '@/models/ChatMessage';
 import SupportTicket, { ISupportTicket } from '@/models/SupportTicket';
 import User, { IUser } from '@/models/User';
 import { sendTelegramMessage, sendTelegramMediaNotice, generateBotResponse, getTelegramBotInfo, syncTelegramUpdates } from '@/lib/telegram';
+import { notificationService } from '@/services/notification.service';
 
 /**
  * Generate a clean Ticket ID (e.g. TK84920A)
@@ -218,28 +219,36 @@ export const POST = withAuth(async (req: NextRequest, authUser) => {
       { status: 'read' }
     );
 
+    const userMsgObj = {
+      id: userMsgDoc._id.toString(),
+      sender: userMsgDoc.sender,
+      senderName: userMsgDoc.senderName,
+      text: userMsgDoc.text,
+      type: userMsgDoc.type,
+      mediaUrl: userMsgDoc.mediaUrl,
+      mediaName: userMsgDoc.mediaName,
+      status: 'read',
+      createdAt: userMsgDoc.createdAt.toISOString(),
+    };
+
+    const botMsgObj = {
+      id: botMsgDoc._id.toString(),
+      sender: botMsgDoc.sender,
+      senderName: botMsgDoc.senderName,
+      text: botMsgDoc.text,
+      type: botMsgDoc.type,
+      status: 'read',
+      createdAt: botMsgDoc.createdAt.toISOString(),
+    };
+
+    // Broadcast SSE chat updates to all open client sessions
+    notificationService.broadcastChatMessage(authUser.userId, userMsgObj);
+    notificationService.broadcastChatMessage(authUser.userId, botMsgObj);
+
     return apiSuccess({
       ticketId,
-      userMessage: {
-        id: userMsgDoc._id.toString(),
-        sender: userMsgDoc.sender,
-        senderName: userMsgDoc.senderName,
-        text: userMsgDoc.text,
-        type: userMsgDoc.type,
-        mediaUrl: userMsgDoc.mediaUrl,
-        mediaName: userMsgDoc.mediaName,
-        status: 'read',
-        createdAt: userMsgDoc.createdAt.toISOString(),
-      },
-      botMessage: {
-        id: botMsgDoc._id.toString(),
-        sender: botMsgDoc.sender,
-        senderName: botMsgDoc.senderName,
-        text: botMsgDoc.text,
-        type: botMsgDoc.type,
-        status: 'read',
-        createdAt: botMsgDoc.createdAt.toISOString(),
-      },
+      userMessage: userMsgObj,
+      botMessage: botMsgObj,
     });
   } catch (err) {
     console.error('Send chat message error:', err);

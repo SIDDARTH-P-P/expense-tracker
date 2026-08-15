@@ -31,7 +31,7 @@ import {
 import toast from 'react-hot-toast';
 import { useNotifications } from '@/hooks/useNotifications';
 import { NotificationPanel } from '@/components/layout/NotificationPanel';
-import { LiveChatModal } from '@/components/chat/LiveChatModal';
+import { useUIStore } from '@/store/ui.store';
 import {
   useCurrentUser,
   useUpdateProfile,
@@ -181,7 +181,7 @@ export function ProfileCard() {
   const [showAvatarMenu, setShowAvatarMenu] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
-  const [showLiveChat, setShowLiveChat] = useState(false);
+  const openLiveChat = useUIStore((s) => s.openLiveChat);
   const avatarMenuRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -750,7 +750,7 @@ export function ProfileCard() {
             </div>
             <button
               type="button"
-              onClick={() => setShowLiveChat(true)}
+              onClick={openLiveChat}
               className="w-full mt-2 rounded-xl border border-border bg-surface py-2 font-semibold text-foreground hover:bg-surface-2 transition-colors flex items-center justify-center gap-2"
             >
               <FiHeadphones size={14} className="text-primary" />
@@ -992,13 +992,6 @@ export function ProfileCard() {
         onMarkRead={markRead}
         onMarkAllRead={markAllRead}
         isMarkingAllRead={isMarkingAllRead}
-      />
-
-      {/* Telegram Bot Live Chat Modal */}
-      <LiveChatModal
-        isOpen={showLiveChat}
-        onClose={() => setShowLiveChat(false)}
-        user={user ? { name: user.name, email: user.email, username: user.username, memberId: user.memberId, avatar: user.avatar } : undefined}
       />
     </div>
   );

@@ -23,9 +23,12 @@ import {
   FiSmile,
   FiMapPin,
   FiFileText,
+  FiHelpCircle,
+  FiCreditCard,
 } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { apiClient } from '@/services/api-client';
+import { ChatMessagesSkeleton } from '@/components/common/Skeleton';
 
 export interface ChatMessageItem {
   id: string;
@@ -131,12 +134,26 @@ export function LiveChatModal({ isOpen, onClose, user }: LiveChatModalProps) {
       fetchChatHistory();
       setTimeout(() => inputRef.current?.focus(), 200);
 
-      // Auto-poll every 1.5 seconds for instant Telegram reply updates
-      const pollInterval = setInterval(() => {
-        fetchChatHistory(true);
-      }, 1500);
+      // Listen to real-time SSE chat events and update state in memory (ZERO GET API calls!)
+      const handleChatMessageReceived = (e: any) => {
+        const payload = e.detail;
+        if (payload && payload.id) {
+          setMessages((prev) => {
+            if (prev.some((m) => m.id === payload.id)) return prev;
+            return [...prev, payload];
+          });
+        }
+      };
 
-      return () => clearInterval(pollInterval);
+      if (typeof window !== 'undefined') {
+        window.addEventListener('chat_message_received', handleChatMessageReceived);
+      }
+
+      return () => {
+        if (typeof window !== 'undefined') {
+          window.removeEventListener('chat_message_received', handleChatMessageReceived);
+        }
+      };
     }
   }, [isOpen]);
 
@@ -636,10 +653,7 @@ export function LiveChatModal({ isOpen, onClose, user }: LiveChatModalProps) {
             </div>
 
             {isLoading && messages.length === 0 ? (
-              <div className="flex h-64 flex-col items-center justify-center gap-2 text-muted">
-                <FiRefreshCw size={22} className="animate-spin text-primary" />
-                <span className="text-xs">Loading support chat...</span>
-              </div>
+              <ChatMessagesSkeleton />
             ) : (
               <>
                 {messages.map((msg) => {
@@ -979,110 +993,313 @@ export function LiveChatModal({ isOpen, onClose, user }: LiveChatModalProps) {
               >
                 <div className="w-12 h-1.5 bg-white/20 rounded-full mx-auto mb-1" />
 
-                {/* Attachment Grid */}
-                <div className="grid grid-cols-4 gap-3 text-center">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      imageInputRef.current?.click();
-                      setShowAttachmentSheet(false);
-                    }}
-                    className="flex flex-col items-center gap-1.5 p-3 rounded-2xl bg-[#222232] hover:bg-[#9d4edd]/20 text-white transition-colors"
-                  >
-                    <div className="h-10 w-10 rounded-full bg-purple-500/20 text-purple-400 flex items-center justify-center">
-                      <FiImage size={20} />
-                    </div>
-                    <span className="text-[11px] font-medium text-white/80">Gallery</span>
-                  </button>
+                {/* Dynamic Attachment Sheet Content by Active Tab */}
+                {attachmentTab === 'gallery' && (
+                  <div className="space-y-2">
+                    {/* Top Action Row */}
+                    <div className="grid grid-cols-4 gap-2 text-center pb-2 border-b border-white/10">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          imageInputRef.current?.click();
+                          setShowAttachmentSheet(false);
+                        }}
+                        className="flex flex-col items-center gap-1.5 p-2 rounded-xl bg-[#222232] hover:bg-[#9d4edd]/20 text-white transition-colors"
+                      >
+                        <div className="h-9 w-9 rounded-full bg-purple-500/20 text-purple-400 flex items-center justify-center">
+                          <FiImage size={18} />
+                        </div>
+                        <span className="text-[10px] font-medium text-white/80">Gallery</span>
+                      </button>
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      fileInputRef.current?.click();
-                      setShowAttachmentSheet(false);
-                    }}
-                    className="flex flex-col items-center gap-1.5 p-3 rounded-2xl bg-[#222232] hover:bg-[#9d4edd]/20 text-white transition-colors"
-                  >
-                    <div className="h-10 w-10 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center">
-                      <FiFile size={20} />
-                    </div>
-                    <span className="text-[11px] font-medium text-white/80">File</span>
-                  </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          fileInputRef.current?.click();
+                          setShowAttachmentSheet(false);
+                        }}
+                        className="flex flex-col items-center gap-1.5 p-2 rounded-xl bg-[#222232] hover:bg-[#9d4edd]/20 text-white transition-colors"
+                      >
+                        <div className="h-9 w-9 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center">
+                          <FiFile size={18} />
+                        </div>
+                        <span className="text-[10px] font-medium text-white/80">File</span>
+                      </button>
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (isRecording) stopAndSendRecording();
-                      else startRecording();
-                      setShowAttachmentSheet(false);
-                    }}
-                    className="flex flex-col items-center gap-1.5 p-3 rounded-2xl bg-[#222232] hover:bg-[#9d4edd]/20 text-white transition-colors"
-                  >
-                    <div className="h-10 w-10 rounded-full bg-red-500/20 text-red-400 flex items-center justify-center">
-                      <FiMic size={20} />
-                    </div>
-                    <span className="text-[11px] font-medium text-white/80">Audio</span>
-                  </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (isRecording) stopAndSendRecording();
+                          else startRecording();
+                          setShowAttachmentSheet(false);
+                        }}
+                        className="flex flex-col items-center gap-1.5 p-2 rounded-xl bg-[#222232] hover:bg-[#9d4edd]/20 text-white transition-colors"
+                      >
+                        <div className="h-9 w-9 rounded-full bg-red-500/20 text-red-400 flex items-center justify-center">
+                          <FiMic size={18} />
+                        </div>
+                        <span className="text-[10px] font-medium text-white/80">Audio</span>
+                      </button>
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      imageInputRef.current?.click();
-                      setShowAttachmentSheet(false);
-                    }}
-                    className="flex flex-col items-center gap-1.5 p-3 rounded-2xl bg-[#222232] hover:bg-[#9d4edd]/20 text-white transition-colors"
-                  >
-                    <div className="h-10 w-10 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
-                      <FiCamera size={20} />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          imageInputRef.current?.click();
+                          setShowAttachmentSheet(false);
+                        }}
+                        className="flex flex-col items-center gap-1.5 p-2 rounded-xl bg-[#222232] hover:bg-[#9d4edd]/20 text-white transition-colors"
+                      >
+                        <div className="h-9 w-9 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                          <FiCamera size={18} />
+                        </div>
+                        <span className="text-[10px] font-medium text-white/80">Camera</span>
+                      </button>
                     </div>
-                    <span className="text-[11px] font-medium text-white/80">Camera</span>
-                  </button>
-                </div>
 
-                {/* Horizontal Telegram Bottom Action Tabs (Matches Screenshot 2) */}
-                <div className="flex items-center justify-around border-t border-white/10 pt-3 text-white/70 text-[11px] font-medium">
+                    {/* Telegram Gallery Preview Grid (Matches User Screenshot) */}
+                    <div className="grid grid-cols-3 gap-2 max-h-[160px] overflow-y-auto pr-1">
+                      {/* Tile 1: Live Camera launcher */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          imageInputRef.current?.click();
+                          setShowAttachmentSheet(false);
+                        }}
+                        className="aspect-square rounded-xl bg-[#222232] border border-white/10 flex flex-col items-center justify-center gap-1 text-white hover:bg-[#9d4edd]/20 transition-colors group"
+                      >
+                        <div className="h-9 w-9 rounded-full bg-white/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                          <FiCamera size={18} />
+                        </div>
+                        <span className="text-[10px] font-medium text-white/70">Take Photo</span>
+                      </button>
+
+                      {/* Preset Gallery Media Tiles with Round Selection Circles */}
+                      {[
+                        { id: 1, name: 'Receipt_Scan.png', gradient: 'from-[#4a154b] to-[#12121a]' },
+                        { id: 2, name: 'Bill_Payment.jpg', gradient: 'from-[#1e3a8a] to-[#12121a]' },
+                        { id: 3, name: 'Invoice_Copy.png', gradient: 'from-[#065f46] to-[#12121a]' },
+                        { id: 4, name: 'Proof_Card.png', gradient: 'from-[#831843] to-[#12121a]' },
+                        { id: 5, name: 'Statement.png', gradient: 'from-[#701a75] to-[#12121a]' },
+                      ].map((item) => (
+                        <button
+                          key={item.id}
+                          type="button"
+                          onClick={() => {
+                            imageInputRef.current?.click();
+                            setShowAttachmentSheet(false);
+                          }}
+                          className={`aspect-square rounded-xl bg-gradient-to-br ${item.gradient} border border-white/10 p-2 relative flex flex-col justify-end text-left group overflow-hidden`}
+                        >
+                          {/* Round Selection Circle matching Screenshot */}
+                          <div className="absolute top-1.5 right-1.5 h-5 w-5 rounded-full border-2 border-white/60 bg-black/40 flex items-center justify-center group-hover:border-[#9d4edd] group-hover:bg-[#9d4edd] transition-colors">
+                            <FiCheck size={12} className="text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                          </div>
+                          <span className="text-[10px] font-semibold text-white/90 truncate drop-shadow-sm">
+                            {item.name}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Wallet Tab Content */}
+                {attachmentTab === 'wallet' && (
+                  <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleSendMediaMessage('file', 'https://expense-desk.app/statement.pdf', 'Wallet_Statement_August.pdf');
+                        setShowAttachmentSheet(false);
+                      }}
+                      className="w-full flex items-center justify-between p-3 rounded-xl bg-[#222232] hover:bg-[#9d4edd]/20 border border-white/10 text-white transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="h-9 w-9 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                          <FiCreditCard size={18} />
+                        </div>
+                        <div className="text-left">
+                          <p className="text-xs font-semibold text-white">Attach Recent Transaction</p>
+                          <p className="text-[10px] text-white/60">Share latest UPI / Card payment proof</p>
+                        </div>
+                      </div>
+                      <FiChevronRight size={16} className="text-white/40" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setInputMessage('I have a query regarding my recent wallet refund request');
+                        setShowAttachmentSheet(false);
+                      }}
+                      className="w-full flex items-center justify-between p-3 rounded-xl bg-[#222232] hover:bg-[#9d4edd]/20 border border-white/10 text-white transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="h-9 w-9 rounded-full bg-purple-500/20 text-purple-400 flex items-center justify-center">
+                          <FiFileText size={18} />
+                        </div>
+                        <div className="text-left">
+                          <p className="text-xs font-semibold text-white">Send Refund Claim Request</p>
+                          <p className="text-[10px] text-white/60">Request executive review for ticket</p>
+                        </div>
+                      </div>
+                      <FiChevronRight size={16} className="text-white/40" />
+                    </button>
+                  </div>
+                )}
+
+                {/* File Tab Content */}
+                {attachmentTab === 'file' && (
+                  <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        fileInputRef.current?.click();
+                        setShowAttachmentSheet(false);
+                      }}
+                      className="w-full flex items-center justify-between p-3 rounded-xl bg-[#222232] hover:bg-[#9d4edd]/20 border border-white/10 text-white transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="h-9 w-9 rounded-full bg-blue-500/20 text-blue-400 flex items-center justify-center">
+                          <FiFile size={18} />
+                        </div>
+                        <div className="text-left">
+                          <p className="text-xs font-semibold text-white">Browse Documents & PDFs</p>
+                          <p className="text-[10px] text-white/60">Upload PDF, DOCX, ZIP, Excel files (under 15MB)</p>
+                        </div>
+                      </div>
+                      <FiChevronRight size={16} className="text-white/40" />
+                    </button>
+                  </div>
+                )}
+
+                {/* Location Tab Content */}
+                {attachmentTab === 'location' && (
+                  <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (navigator.geolocation) {
+                          navigator.geolocation.getCurrentPosition(
+                            (pos) => {
+                              const lat = pos.coords.latitude;
+                              const lng = pos.coords.longitude;
+                              const mapUrl = `https://maps.google.com/?q=${lat},${lng}`;
+                              handleSendMediaMessage('file', mapUrl, `GPS_Location_${lat.toFixed(3)}_${lng.toFixed(3)}.map`);
+                              toast.success('Live location shared!');
+                              setShowAttachmentSheet(false);
+                            },
+                            () => {
+                              toast.error('Unable to fetch live GPS location');
+                            }
+                          );
+                        } else {
+                          toast.error('Geolocation not supported');
+                        }
+                      }}
+                      className="w-full flex items-center justify-between p-3 rounded-xl bg-[#222232] hover:bg-[#9d4edd]/20 border border-white/10 text-white transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="h-9 w-9 rounded-full bg-rose-500/20 text-rose-400 flex items-center justify-center">
+                          <FiMapPin size={18} />
+                        </div>
+                        <div className="text-left">
+                          <p className="text-xs font-semibold text-white">Share Live Location</p>
+                          <p className="text-[10px] text-white/60">Send real-time GPS location coordinates</p>
+                        </div>
+                      </div>
+                      <FiChevronRight size={16} className="text-white/40" />
+                    </button>
+                  </div>
+                )}
+
+                {/* Article Tab Content */}
+                {attachmentTab === 'article' && (
+                  <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
+                    {[
+                      { title: 'How to add a new transaction?', desc: 'Step-by-step guide to log income or expenses' },
+                      { title: 'How to create custom expense categories?', desc: 'Organize budget with custom tags' },
+                      { title: 'How split transaction sharing works?', desc: 'Split bills & calculate group balances' },
+                    ].map((art, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        onClick={() => {
+                          setInputMessage(`Question about: ${art.title}`);
+                          setShowAttachmentSheet(false);
+                        }}
+                        className="w-full flex items-center justify-between p-3 rounded-xl bg-[#222232] hover:bg-[#9d4edd]/20 border border-white/10 text-white transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="h-9 w-9 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center">
+                            <FiHelpCircle size={18} />
+                          </div>
+                          <div className="text-left">
+                            <p className="text-xs font-semibold text-white">{art.title}</p>
+                            <p className="text-[10px] text-white/60">{art.desc}</p>
+                          </div>
+                        </div>
+                        <FiChevronRight size={16} className="text-white/40" />
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Telegram Capsule Bottom Tab Bar (Matches Screenshot) */}
+                <div className="flex items-center justify-between bg-[#12121a] rounded-full p-1 border border-white/10 text-white/70 text-[11px] font-medium">
                   <button
                     type="button"
                     onClick={() => setAttachmentTab('gallery')}
-                    className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full transition-colors ${
-                      attachmentTab === 'gallery' ? 'bg-[#9d4edd] text-white font-bold' : 'hover:text-white'
+                    className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-full transition-colors ${
+                      attachmentTab === 'gallery' ? 'bg-[#9d4edd] text-white font-bold shadow-md' : 'hover:text-white'
                     }`}
                   >
-                    <FiImage size={14} />
+                    <FiImage size={13} />
                     <span>Gallery</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setAttachmentTab('wallet')}
-                    className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full transition-colors ${
-                      attachmentTab === 'wallet' ? 'bg-[#9d4edd] text-white font-bold' : 'hover:text-white'
+                    className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-full transition-colors ${
+                      attachmentTab === 'wallet' ? 'bg-[#9d4edd] text-white font-bold shadow-md' : 'hover:text-white'
                     }`}
                   >
-                    <FiFileText size={14} />
+                    <FiCreditCard size={13} />
                     <span>Wallet</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setAttachmentTab('file')}
-                    className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full transition-colors ${
-                      attachmentTab === 'file' ? 'bg-[#9d4edd] text-white font-bold' : 'hover:text-white'
+                    className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-full transition-colors ${
+                      attachmentTab === 'file' ? 'bg-[#9d4edd] text-white font-bold shadow-md' : 'hover:text-white'
                     }`}
                   >
-                    <FiFile size={14} />
+                    <FiFile size={13} />
                     <span>File</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setAttachmentTab('location')}
-                    className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full transition-colors ${
-                      attachmentTab === 'location' ? 'bg-[#9d4edd] text-white font-bold' : 'hover:text-white'
+                    className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-full transition-colors ${
+                      attachmentTab === 'location' ? 'bg-[#9d4edd] text-white font-bold shadow-md' : 'hover:text-white'
                     }`}
                   >
-                    <FiMapPin size={14} />
+                    <FiMapPin size={13} />
                     <span>Location</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setAttachmentTab('article')}
+                    className={`flex-1 flex items-center justify-center gap-1 py-1.5 rounded-full transition-colors ${
+                      attachmentTab === 'article' ? 'bg-[#9d4edd] text-white font-bold shadow-md' : 'hover:text-white'
+                    }`}
+                  >
+                    <FiHelpCircle size={13} />
+                    <span>Article</span>
                   </button>
                 </div>
               </motion.div>

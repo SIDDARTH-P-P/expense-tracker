@@ -288,6 +288,17 @@ export function useNotifications() {
         }
       });
 
+      es.addEventListener('chat_message', (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (typeof window !== 'undefined') {
+            window.dispatchEvent(new CustomEvent('chat_message_received', { detail: data }));
+          }
+        } catch {
+          // ignore
+        }
+      });
+
       es.addEventListener('open', () => {
         retryCount = 0; // reset retries on successful connect
       });

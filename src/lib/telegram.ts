@@ -1,5 +1,6 @@
 import ChatMessage from '@/models/ChatMessage';
 import SupportTicket from '@/models/SupportTicket';
+import { notificationService } from '@/services/notification.service';
 
 /**
  * Telegram Bot Integration Utility
@@ -341,9 +342,12 @@ export async function syncTelegramUpdates(userId: string, ticketId: string): Pro
     const res = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getUpdates`, {
       method: 'GET',
       cache: 'no-store',
+      signal: AbortSignal.timeout(4000),
     });
     const data = await res.json();
     if (!data.ok || !Array.isArray(data.result)) return;
+
+    let hasNewMessages = false;
 
     for (const update of data.result) {
       const msg = update.message;
@@ -383,7 +387,7 @@ export async function syncTelegramUpdates(userId: string, ticketId: string): Pro
       }
 
       if (msgText || msgType !== 'text') {
-        await ChatMessage.create({
+        const agentMsgDoc = await ChatMessage.create({
           userId,
           ticketId,
           sender: 'agent',
@@ -407,10 +411,22 @@ export async function syncTelegramUpdates(userId: string, ticketId: string): Pro
           { ticketId },
           { assignedAgent: `${senderName} (Telegram)`, status: 'assigned' }
         );
+
+        notificationService.broadcastChatMessage(userId, {
+          id: agentMsgDoc._id.toString(),
+          sender: agentMsgDoc.sender,
+          senderName: agentMsgDoc.senderName,
+          text: agentMsgDoc.text,
+          type: agentMsgDoc.type,
+          mediaUrl: agentMsgDoc.mediaUrl,
+          mediaName: agentMsgDoc.mediaName,
+          status: 'read',
+          createdAt: agentMsgDoc.createdAt.toISOString(),
+        });
       }
     }
   } catch (err) {
-    console.error('Error syncing Telegram updates:', err);
+    // Silent catch for network/timeout errors
   }
 }
 

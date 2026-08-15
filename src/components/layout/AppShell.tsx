@@ -1,5 +1,7 @@
 'use client';
 
+import React, { useEffect } from 'react';
+
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
 import { BottomNav } from './BottomNav';
@@ -9,8 +11,10 @@ import { TransactionForm } from '@/components/forms/TransactionForm';
 import { CategoryModal } from '@/components/management/CategoryModal';
 import { SplitModal } from '@/components/management/SplitModal';
 import { SplitUserModal } from '@/components/management/SplitUserModal';
+import { LiveChatModal } from '@/components/chat/LiveChatModal';
 import { useUIStore } from '@/store/ui.store';
 import { useCreateTransaction } from '@/hooks/useTransactions';
+import { useCurrentUser } from '@/hooks/useAuth';
 import { FiArrowLeft } from 'react-icons/fi';
 
 import { usePathname } from 'next/navigation';
@@ -27,10 +31,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const isProfilePage = pathname === '/profile';
 
+  // Persist current active route across browser refreshes
+  useEffect(() => {
+    if (pathname && typeof window !== 'undefined' && !pathname.startsWith('/login') && !pathname.startsWith('/signup')) {
+      localStorage.setItem('et_last_route', pathname);
+    }
+  }, [pathname]);
+
+  const { data: user } = useCurrentUser();
   const isAddSheetOpen = useUIStore((s) => s.isAddSheetOpen);
   const closeAddSheet = useUIStore((s) => s.closeAddSheet);
   const addSheetKind = useUIStore((s) => s.addSheetKind);
   const defaultType = useUIStore((s) => s.addSheetDefaultType);
+  const isLiveChatOpen = useUIStore((s) => s.isLiveChatOpen);
+  const closeLiveChat = useUIStore((s) => s.closeLiveChat);
   const createTransaction = useCreateTransaction();
   const isTransactionSheet = addSheetKind === 'transaction';
   const addSheetTitle =
@@ -118,6 +132,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         )}
       </BottomSheet>
+
+      {/* Global Persistent Live Chat Support Desk Modal */}
+      <LiveChatModal
+        isOpen={isLiveChatOpen}
+        onClose={closeLiveChat}
+        user={user ? { name: user.name, email: user.email, username: user.username, memberId: user.memberId, avatar: user.avatar } : undefined}
+      />
     </div>
   );
 }

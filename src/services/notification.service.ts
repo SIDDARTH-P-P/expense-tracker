@@ -148,6 +148,20 @@ export const notificationService = {
     if (clients.size === 0) sseClients.delete(key);
   },
 
+  broadcastChatMessage(userId: string, payload: any) {
+    const key = String(userId);
+    const clients = sseClients.get(key);
+    if (!clients || clients.size === 0) return;
+
+    const dead: SSEController[] = [];
+    clients.forEach((controller) => {
+      const sent = sendSSEMessage(controller, 'chat_message', payload);
+      if (!sent) dead.push(controller);
+    });
+    dead.forEach((c) => clients.delete(c));
+    if (clients.size === 0) sseClients.delete(key);
+  },
+
   registerClient(userId: string, controller: SSEController) {
     const key = String(userId);
     if (!sseClients.has(key)) {
@@ -187,4 +201,31 @@ if (!(global as any).pingIntervalStarted) {
       }
     });
   }, 20000);
+}
+
+// Background Telegram update sync worker for connected SSE clients (0 browser GET requests!)
+if (!(global as any).telegramBackgroundWorkerStarted) {
+  (global as any).telegramBackgroundWorkerStarted = true;
+
+  setInterval(async () => {
+    try {
+      if (sseClients.size === 0) return;
+
+      const SupportTicket = (await import('@/models/SupportTicket')).default;
+      const { syncTelegramUpdates } = await import('@/lib/telegram');
+
+      for (const [userIdStr] of sseClients.entries()) {
+        const activeTickets = await SupportTicket.find({
+          userId: userIdStr,
+          status: { $in: ['open', 'assigned'] },
+        }).lean();
+
+        for (const ticket of activeTickets) {
+          await syncTelegramUpdates(userIdStr, (ticket as any).ticketId);
+        }
+      }
+    } catch {
+      // Ignore background errors
+    }
+  }, 3000);
 }

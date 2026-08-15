@@ -6,7 +6,7 @@ import { useDashboardSummary } from '@/hooks/useDashboard';
 import { useCurrentUser } from '@/hooks/useAuth';
 import { BalanceCard } from '@/components/dashboard/BalanceCard';
 import { RecentTransactions } from '@/components/dashboard/RecentTransactions';
-import { CardSkeleton } from '@/components/common/Skeleton';
+import { DashboardSkeleton } from '@/components/common/Skeleton';
 import { ErrorState } from '@/components/common/ErrorState';
 import { useUIStore } from '@/store/ui.store';
 
@@ -40,12 +40,7 @@ export default function DashboardPage() {
   if (isError) return <ErrorState onRetry={() => refetch()} />;
 
   if (isLoading || !summary) {
-    return (
-      <div className="mx-auto max-w-xl flex flex-col gap-4 pt-3">
-        <CardSkeleton className="h-52 rounded-[26px]" />
-        <CardSkeleton className="h-64 rounded-3xl" />
-      </div>
-    );
+    return <DashboardSkeleton />;
   }
 
   return (
